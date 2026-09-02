@@ -14,6 +14,7 @@ architecture/context reference.
 - [macos-bluetooth-entitlement](memories/macos-bluetooth-entitlement.md) — packaged-mac Bluetooth permission requirements
 - [ble-terminal-protocol](memories/ble-terminal-protocol.md) — TAP/FUK/HCP marker convention in the message terminal
 - [ble-settings-write-protocol](memories/ble-settings-write-protocol.md) — outgoing FU1/FU2 wire format for writing device settings
+- [settings-write-implementation](memories/settings-write-implementation.md) — how FU1/FU2 writes were implemented: state location, defaults, currentTime assumption
 - [electron-forge-native-rebuild](memories/electron-forge-native-rebuild.md) — native module rebuild is automatic
 
 ## Adding a new memory

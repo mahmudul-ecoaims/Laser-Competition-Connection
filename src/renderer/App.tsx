@@ -2,6 +2,7 @@ import { useState } from 'react';
 import './styles/app.css';
 import ConnectionChoiceScreen from './features/device/ConnectionChoiceScreen';
 import DevicePanel from './features/device/DevicePanel';
+import DeviceSettingsPanel from './features/device/DeviceSettingsPanel';
 import DeviceTerminal from './features/device/DeviceTerminal';
 import { useDevice, type DeviceMode } from './features/device/useDevice';
 
@@ -41,7 +42,10 @@ const App = () => {
         ) : (
           <div className="device-screen">
             <div className={`app-content${isConnected ? ' app-content--split' : ''}`}>
-              <DevicePanel device={device} />
+              <div className="app-content-left">
+                <DevicePanel device={device} />
+                {isConnected && device.mode === 'ble' && <DeviceSettingsPanel device={device} />}
+              </div>
               {isConnected && <DeviceTerminal messages={device.messages} onClear={device.clearMessages} />}
             </div>
           </div>

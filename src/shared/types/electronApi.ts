@@ -1,6 +1,7 @@
 import type { BleDeviceInfo } from './ble';
 import type { DeviceMessage, DeviceStatusEvent } from './device';
 import type { SerialPortInfo } from './serial';
+import type { DeviceSettings } from './settings';
 
 export interface ElectronAPI {
   getAppVersion: () => Promise<string>;
@@ -9,7 +10,7 @@ export interface ElectronAPI {
     startScan: () => Promise<void>;
     stopScan: () => Promise<void>;
     connect: (deviceId: string) => Promise<void>;
-    writeSettings: (data: Uint8Array) => Promise<void>;
+    writeSettings: (settings: Partial<DeviceSettings>) => Promise<DeviceSettings>;
     onDeviceDiscovered: (callback: (device: BleDeviceInfo) => void) => () => void;
   };
 

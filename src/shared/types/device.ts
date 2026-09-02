@@ -27,11 +27,15 @@ export interface DeviceStatusEvent {
 /** Which characteristic (BLE) or stream (serial) a message came from. */
 export type DeviceMessageSource = 'command' | 'settings' | 'serial';
 
+/** Whether a message was received from the device or sent to it. */
+export type DeviceMessageDirection = 'in' | 'out';
+
 export interface DeviceMessage {
   id: string;
   timestamp: number;
   transport: DeviceTransportKind;
   source: DeviceMessageSource;
+  direction: DeviceMessageDirection;
   /** Raw bytes as hex, e.g. "0a1f3c". */
   hex: string;
   /** UTF-8 decoded text. */

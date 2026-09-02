@@ -1,5 +1,6 @@
 import { app, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { IPC_CHANNELS } from '../../../shared/ipc/channels';
+import type { DeviceSettings } from '../../../shared/types/settings';
 import { isTrustedRendererUrl } from '../windows/mainWindow';
 import { bleService } from '../services/bleService';
 import { serialService } from '../services/serialService';
@@ -35,9 +36,9 @@ export const registerIpcHandlers = () => {
     return bleService.connect(deviceId);
   });
 
-  ipcMain.handle(IPC_CHANNELS.bleWriteSettings, (event, data: Uint8Array) => {
+  ipcMain.handle(IPC_CHANNELS.bleWriteSettings, (event, settings: Partial<DeviceSettings>) => {
     validateIpcSender(event);
-    return bleService.writeSettings(data);
+    return bleService.writeSettings(settings);
   });
 
   // Serial

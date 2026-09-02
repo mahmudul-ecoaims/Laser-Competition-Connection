@@ -28,7 +28,13 @@ all (diffed against in-memory state, not re-sent unconditionally).
 This is the write side of the settings round-trip — the device echoes
 current settings back via an incoming `FUK` message, parsed by
 `_toObject.FUK` in `docs/constants/BleHelper.js` (see
-[[ble-terminal-protocol]]). `FU1`/`FU2` are not among the `TAP`/`FUK`/`HCP`
-prefixes that terminal marks with `-->` — if these writes are echoed or
-acked, confirm what prefix that reply uses before assuming it's silently
-dropped.
+[[ble-terminal-protocol]]). Confirmed: `FUK` is the write's confirmation
+reply — the RN app's `dispatchers.FUK` fires `Settings/TARGET_SETTINGS` on
+it. Wire format: `FUK:<targetNumber>:<brightness>:<battery>:<mode>:
+<shootingArea>:<shotsHeat>:<secondsHeat>:<timestamp>`. Notifications are
+only started on `GLOBALS.SERVICE.CHARACTERISTIC` (the Command
+characteristic, [[ble-target-uuids]]) in the RN app, not on Settings — so
+FUK (like TAP/HCP) arrives on Command, even though the FU1/FU2 writes it's
+confirming went out on Settings. This app waits for that FUK reply before
+treating a settings write as applied — see
+[[settings-write-implementation]].

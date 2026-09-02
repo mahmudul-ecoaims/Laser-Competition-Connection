@@ -1,8 +1,17 @@
 import noble, { type Characteristic, type Peripheral } from '@abandonware/noble';
+import { EventEmitter } from 'node:events';
 import { BLE_SCAN_TIMEOUT_MS, BLE_UUIDS } from '../../../shared/constants/ble';
+import { DEFAULT_DEVICE_SETTINGS } from '../../../shared/constants/settings';
 import { IPC_CHANNELS } from '../../../shared/ipc/channels';
 import type { BleDeviceInfo } from '../../../shared/types/ble';
 import type { DeviceMessageSource } from '../../../shared/types/device';
+import type { DeviceSettings } from '../../../shared/types/settings';
+import {
+  encodeFu1,
+  encodeFu2,
+  parseFukMessage,
+  SETTINGS_CONFIRMATION_TIMEOUT_MS,
+} from './deviceSettingsProtocol';
 import { deviceManager } from './deviceManager';
 import { MessageFramer } from './messageFramer';
 
@@ -23,6 +32,16 @@ class BleService {
   private settingsCharacteristic: Characteristic | null = null;
   private scanTimeout: NodeJS.Timeout | null = null;
   private readonly framers = new Map<DeviceMessageSource, MessageFramer>();
+  /**
+   * Settings last confirmed by the device's FUK echo, reset to defaults on
+   * each connect (not read back from the device until the first write is
+   * confirmed) — see agentMemory/memories/ble-settings-write-protocol.md.
+   */
+  private currentSettings: DeviceSettings = { ...DEFAULT_DEVICE_SETTINGS };
+  /** Emits 'fuk' with the parsed settings (or null on disconnect) whenever
+   * an incoming FUK message arrives, so writeSettings can wait for the
+   * device's confirmation of the write it just sent. */
+  private readonly fukEvents = new EventEmitter();
 
   constructor() {
     noble.on('discover', (peripheral) => {
@@ -103,14 +122,22 @@ class BleService {
     const framer = this.getFramer(source);
     characteristic.on('data', (data: Buffer) => {
       for (const line of framer.push(data)) {
+        const text = line.toString('utf8');
         deviceManager.publishMessage({
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           timestamp: Date.now(),
           transport: 'ble',
           source,
+          direction: 'in',
           hex: line.toString('hex'),
-          text: line.toString('utf8'),
+          text,
         });
+
+        // The RN reference only subscribes to notifications on the command
+        // characteristic, so FUK arrives there in practice — but parse it
+        // regardless of `source` in case firmware ever echoes it elsewhere.
+        const fuk = parseFukMessage(text);
+        if (fuk) this.fukEvents.emit('fuk', fuk);
       }
     });
 
@@ -126,6 +153,7 @@ class BleService {
     await this.stopScan();
     deviceManager.setStatus({ transport: 'ble', status: 'connecting', targetId: deviceId });
     this.framers.clear();
+    this.currentSettings = { ...DEFAULT_DEVICE_SETTINGS };
 
     peripheral.once('disconnect', () => {
       this.connectedPeripheral = null;
@@ -133,6 +161,9 @@ class BleService {
       this.settingsCharacteristic = null;
       deviceManager.setActive(null);
       deviceManager.setStatus({ transport: 'ble', status: 'disconnected', targetId: deviceId });
+      // Unstick any writeSettings() still waiting on a FUK confirmation
+      // instead of making it wait out the full timeout.
+      this.fukEvents.emit('fuk', null);
     });
 
     try {
@@ -192,11 +223,65 @@ class BleService {
     await this.commandCharacteristic.writeAsync(Buffer.from(data), false);
   }
 
-  async writeSettings(data: Uint8Array): Promise<void> {
+  /**
+   * Merges `partial` into the last-confirmed settings and, if anything
+   * actually changed, pushes the FU1/FU2 writes documented in
+   * agentMemory/memories/ble-settings-write-protocol.md (mirroring the
+   * companion RN app's diff-and-skip-if-unchanged behavior), then waits for
+   * the device's FUK echo to confirm them before resolving. Throws if no
+   * FUK arrives within `SETTINGS_CONFIRMATION_TIMEOUT_MS` (or the device
+   * disconnects mid-wait) — callers should treat the settings as
+   * unconfirmed/unchanged in that case.
+   */
+  async writeSettings(partial: Partial<DeviceSettings>): Promise<DeviceSettings> {
     if (!this.settingsCharacteristic) {
       throw new Error('Settings characteristic not available on this device');
     }
-    await this.settingsCharacteristic.writeAsync(Buffer.from(data), false);
+
+    const next: DeviceSettings = { ...this.currentSettings, ...partial };
+    const unchanged = (Object.keys(next) as (keyof DeviceSettings)[]).every(
+      (key) => next[key] === this.currentSettings[key],
+    );
+    if (unchanged) return this.currentSettings;
+
+    await this.writeSettingsLine(encodeFu1(next));
+    await this.writeSettingsLine(encodeFu2(next));
+
+    const confirmed = await this.waitForFukConfirmation(SETTINGS_CONFIRMATION_TIMEOUT_MS);
+    if (!confirmed) {
+      throw new Error('Timed out waiting for the device to confirm the new settings (no FUK reply)');
+    }
+
+    this.currentSettings = confirmed;
+    return confirmed;
+  }
+
+  private waitForFukConfirmation(timeoutMs: number): Promise<DeviceSettings | null> {
+    return new Promise((resolve) => {
+      const onFuk = (settings: DeviceSettings | null) => {
+        clearTimeout(timer);
+        resolve(settings);
+      };
+      const timer = setTimeout(() => {
+        this.fukEvents.off('fuk', onFuk);
+        resolve(null);
+      }, timeoutMs);
+      this.fukEvents.once('fuk', onFuk);
+    });
+  }
+
+  private async writeSettingsLine(line: string): Promise<void> {
+    const buffer = Buffer.from(line, 'utf8');
+    await this.settingsCharacteristic!.writeAsync(buffer, false);
+    deviceManager.publishMessage({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      timestamp: Date.now(),
+      transport: 'ble',
+      source: 'settings',
+      direction: 'out',
+      hex: buffer.toString('hex'),
+      text: line,
+    });
   }
 }
 

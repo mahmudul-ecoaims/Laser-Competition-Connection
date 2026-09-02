@@ -32,11 +32,11 @@ and NOT used here. Only the BLE UUIDs were carried over, into
 - `src/electron/preload/preload.ts` — the only bridge into the renderer; exposes `window.electronAPI` via `contextBridge`
 - `src/shared/` — code shared by main + renderer (must stay Node/browser agnostic)
   - `ipc/channels.ts` — canonical IPC channel name strings
-  - `types/` — `electronApi.ts` (the `window.electronAPI` contract), `device.ts` (transport-agnostic status/message types), `ble.ts` (BLE scan-result type), `serial.ts` (serial port info type)
-  - `constants/ble.ts` — the three BLE UUIDs; `constants/serial.ts` — default baud rate + common rates for the UI
+  - `types/` — `electronApi.ts` (the `window.electronAPI` contract), `device.ts` (transport-agnostic status/message types), `ble.ts` (BLE scan-result type), `serial.ts` (serial port info type), `settings.ts` (`DeviceSettings` shape for the FU1/FU2 write, see [[ble-settings-write-protocol]])
+  - `constants/ble.ts` — the three BLE UUIDs; `constants/serial.ts` — default baud rate + common rates for the UI; `constants/settings.ts` — `DEFAULT_DEVICE_SETTINGS` + the selectable-value list per settings field
 - `src/renderer/` — React UI
-  - `App.tsx` — owns the single `useDevice()` call; renders `DevicePanel` and, once connected, `DeviceTerminal` beside it
-  - `features/device/` — `useDevice.ts` (hook: mode/devices/ports/status/messages + actions), `DevicePanel.tsx` (BLE-scan or serial-port UI depending on mode), `DeviceTerminal.tsx` (live incoming-message log, transport-agnostic)
+  - `App.tsx` — owns the single `useDevice()` call; renders `DevicePanel` (+ `DeviceSettingsPanel` under it once connected over BLE) and, once connected, `DeviceTerminal` beside them
+  - `features/device/` — `useDevice.ts` (hook: mode/devices/ports/status/messages/settings + actions), `DevicePanel.tsx` (BLE-scan or serial-port UI depending on mode), `DeviceSettingsPanel.tsx` (selects for brightness/mode/shootingArea/shotsHeat/secondsHeat, BLE-only, see [[settings-write-implementation]]), `DeviceTerminal.tsx` (live message log, transport-agnostic, incoming and outgoing)
   - `styles/app.css` — single global stylesheet, dark theme
 
 ## Security posture (don't relax without asking)
@@ -62,7 +62,12 @@ and NOT used here. Only the BLE UUIDs were carried over, into
 
 ## Known gaps (as of writing)
 
-- No UI wired to send actual commands (`writeCommand`) or edit settings (`writeSettings`) yet — only scan/connect/disconnect/read exist in the UI.
+- No UI wired to send actual commands (`writeCommand`) yet. Settings
+  (`writeSettings`) now has UI and waits for the device's `FUK` reply to
+  confirm each write — see [[settings-write-implementation]] — but its
+  in-memory state still resets to hardcoded defaults on connect rather than
+  requesting the device's actual current settings (no such "read" request
+  is sent on connect, only reactively on the first write).
 - Serial baud rate default (115200) is an unconfirmed assumption. Message framing was confirmed by direct capture and fixed — see [[ble-cr-only-line-endings]].
 - No auto-reconnect on unexpected disconnect, for either transport.
 - Windows support (noble and serialport) is untested; only macOS has been verified. Neither transport has been exercised against real hardware yet.

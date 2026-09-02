@@ -52,6 +52,7 @@ class SerialService {
             timestamp: Date.now(),
             transport: 'serial',
             source: 'serial',
+            direction: 'in',
             hex: line.toString('hex'),
             text: line.toString('utf8'),
           });
