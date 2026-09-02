@@ -1,7 +1,7 @@
 /**
  * Not confirmed with hardware yet — 115200 is just the most common default
  * for this class of device. Update once the real baud rate is known (see
- * agentMemory/memories/message-framing-unconfirmed.md).
+ * agentMemory/memories/serial-transport.md).
  */
 export const DEFAULT_BAUD_RATE = 115200;
 

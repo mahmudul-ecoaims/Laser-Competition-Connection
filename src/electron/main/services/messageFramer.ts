@@ -1,15 +1,18 @@
 /**
  * Buffers incoming bytes and splits them into complete messages.
  *
- * Framing is NOT confirmed with the hardware yet (see
- * agentMemory/memories/message-framing-unconfirmed.md) — this assumes
- * newline-delimited text lines (`\n`, with an optional trailing `\r`
- * stripped), the most common convention for this kind of device protocol.
- * If the real framing turns out to be different (fixed length, a different
- * delimiter, binary length-prefixed, ...), this is the only file that needs
- * to change — both bleService and serialService feed raw bytes through an
- * instance of this class rather than parsing chunks themselves, which is
- * what makes the two transports produce identical message shapes.
+ * Framing is line-delimited text, but — confirmed by direct BLE capture,
+ * see agentMemory/memories/ble-cr-only-line-endings.md — the device does
+ * NOT reliably terminate every line with `\r\n`. Most lines end in `\r`
+ * only; the matching `\n` shows up later, on its own, whenever it happens
+ * to fall on a BLE notification packet boundary. So `\r` and `\n` are both
+ * treated as line terminators here (whichever comes first), not just
+ * `\n` — splitting on `\n` alone silently glues consecutive `\r`-only
+ * lines together into one message until a stray `\n` eventually arrives.
+ *
+ * Both bleService and serialService feed raw bytes through an instance of
+ * this class rather than parsing chunks themselves, which is what makes
+ * the two transports produce identical message shapes.
  *
  * One instance per stream (each BLE characteristic, each serial port) so
  * partial lines from different streams never get mixed together.
@@ -22,20 +25,16 @@ export class MessageFramer {
     this.buffer = Buffer.concat([this.buffer, chunk]);
 
     const lines: Buffer[] = [];
-    let newlineIndex = this.buffer.indexOf(0x0a); // '\n'
+    let delimiterIndex = this.buffer.findIndex((byte) => byte === 0x0a || byte === 0x0d); // '\n' or '\r'
 
-    while (newlineIndex !== -1) {
-      let line = this.buffer.subarray(0, newlineIndex);
-      if (line.length > 0 && line[line.length - 1] === 0x0d) {
-        // trailing '\r'
-        line = line.subarray(0, line.length - 1);
-      }
+    while (delimiterIndex !== -1) {
+      const line = this.buffer.subarray(0, delimiterIndex);
       if (line.length > 0) {
         lines.push(Buffer.from(line));
       }
 
-      this.buffer = this.buffer.subarray(newlineIndex + 1);
-      newlineIndex = this.buffer.indexOf(0x0a);
+      this.buffer = this.buffer.subarray(delimiterIndex + 1);
+      delimiterIndex = this.buffer.findIndex((byte) => byte === 0x0a || byte === 0x0d);
     }
 
     return lines;

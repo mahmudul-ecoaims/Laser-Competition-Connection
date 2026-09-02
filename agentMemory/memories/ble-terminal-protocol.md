@@ -17,5 +17,6 @@ BLE or serial. Always visible:
 
 Matching is case-sensitive (`startsWith`) — confirm with the hardware team
 whether the device ever sends lowercase variants before assuming this is
-complete (see [[message-framing-unconfirmed]]). See [[ble-target-uuids]] for
-which BLE characteristic these messages come from when on that transport.
+complete (see [[ble-cr-only-line-endings]] for a related framing gotcha).
+See [[ble-target-uuids]] for which BLE characteristic these messages come
+from when on that transport.

@@ -26,7 +26,7 @@ and NOT used here. Only the BLE UUIDs were carried over, into
   - `windows/mainWindow.ts` — BrowserWindow creation + trusted-origin checks for navigation/IPC
   - `ipc/registerHandlers.ts` — every `ipcMain.handle(...)`; validates the sender before each one
   - `services/deviceManager.ts` — tracks the single active transport (BLE or serial) and dispatches generic write/disconnect/broadcast to it
-  - `services/messageFramer.ts` — buffers raw bytes into complete messages; the one place that defines message framing (see [[message-framing-unconfirmed]])
+  - `services/messageFramer.ts` — buffers raw bytes into complete messages; the one place that defines message framing (splits on `\r` or `\n`, see [[ble-cr-only-line-endings]])
   - `services/bleService.ts` — noble wrapper: scan/connect/disconnect/write, subscribes to notify/indicate characteristics
   - `services/serialService.ts` — serialport wrapper: list ports/connect/disconnect/write
 - `src/electron/preload/preload.ts` — the only bridge into the renderer; exposes `window.electronAPI` via `contextBridge`
@@ -63,7 +63,7 @@ and NOT used here. Only the BLE UUIDs were carried over, into
 ## Known gaps (as of writing)
 
 - No UI wired to send actual commands (`writeCommand`) or edit settings (`writeSettings`) yet — only scan/connect/disconnect/read exist in the UI.
-- Message framing (newline-delimited) and serial baud rate are unconfirmed assumptions — see [[message-framing-unconfirmed]].
+- Serial baud rate default (115200) is an unconfirmed assumption. Message framing was confirmed by direct capture and fixed — see [[ble-cr-only-line-endings]].
 - No auto-reconnect on unexpected disconnect, for either transport.
 - Windows support (noble and serialport) is untested; only macOS has been verified. Neither transport has been exercised against real hardware yet.
 - Packaged build (`make`/`package`) has not been tested end-to-end.

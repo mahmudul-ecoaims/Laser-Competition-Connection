@@ -9,10 +9,11 @@ architecture/context reference.
 - [ble-architecture-decision](memories/ble-architecture-decision.md) — why noble-in-main-process over Web Bluetooth
 - [device-transport-abstraction](memories/device-transport-abstraction.md) — BLE and serial are two switchable transports unified behind deviceManager
 - [serial-transport](memories/serial-transport.md) — serialport package, native-module handling, baud rate
-- [message-framing-unconfirmed](memories/message-framing-unconfirmed.md) — newline framing is a guess, not confirmed — read before touching parsing
+- [ble-cr-only-line-endings](memories/ble-cr-only-line-endings.md) — BLE lines often end in bare \r with \n arriving late; framer splits on either
 - [noble-vite-bundling-bug](memories/noble-vite-bundling-bug.md) — Vite/Rollup bundling bug + fix, don't undo it
 - [macos-bluetooth-entitlement](memories/macos-bluetooth-entitlement.md) — packaged-mac Bluetooth permission requirements
 - [ble-terminal-protocol](memories/ble-terminal-protocol.md) — TAP/FUK/HCP marker convention in the message terminal
+- [ble-settings-write-protocol](memories/ble-settings-write-protocol.md) — outgoing FU1/FU2 wire format for writing device settings
 - [electron-forge-native-rebuild](memories/electron-forge-native-rebuild.md) — native module rebuild is automatic
 
 ## Adding a new memory

@@ -21,9 +21,9 @@ transport is live. This is enforced by two things:
    (`device:write-command`, `device:disconnect`) go through it rather than
    through BLE- or serial-specific channels.
 2. `MessageFramer` (`messageFramer.ts`) is the one piece of code that turns
-   raw bytes into a message, used identically by both services. See
-   [[message-framing-unconfirmed]] — this is the part most likely to need
-   changing once the real protocol is confirmed.
+   raw bytes into a message, used identically by both services. It splits
+   on `\r` or `\n` — see [[ble-cr-only-line-endings]] for why both are
+   needed (BLE-specific framing quirk that plain-`\n` splitting missed).
 
 Renderer side: `useDevice.ts` holds a `mode: 'ble' | 'serial'` for which tab
 is showing, `DevicePanel.tsx` renders BLE scan UI or serial port + baud-rate

@@ -16,7 +16,7 @@ Port discovery is a plain one-shot `SerialPort.list()` call (exposed via the
 button) — unlike BLE there's no continuous "scanning" state for serial.
 
 Default baud rate is 115200 (`DEFAULT_BAUD_RATE` in
-`src/shared/constants/serial.ts`) — not confirmed with hardware, see
-[[message-framing-unconfirmed]]. The UI exposes a baud-rate dropdown
+`src/shared/constants/serial.ts`) — not confirmed with hardware. The UI
+exposes a baud-rate dropdown
 (`COMMON_BAUD_RATES`) so this doesn't need a code change to test other
 rates.
