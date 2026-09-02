@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import './styles/app.css';
+import { useEffect, useState } from "react";
+import "./styles/app.css";
 
 const App = () => {
-  const [appVersion, setAppVersion] = useState<string>('Loading...');
+  const [appVersion, setAppVersion] = useState<string>("Loading...");
 
   useEffect(() => {
     let isMounted = true;
@@ -16,7 +16,7 @@ const App = () => {
       })
       .catch(() => {
         if (isMounted) {
-          setAppVersion('Unavailable');
+          setAppVersion("Unavailable");
         }
       });
 
@@ -26,7 +26,7 @@ const App = () => {
   }, []);
 
   return (
-    <main className="app-shell">
+    <main className="root">
       <section className="app-panel" aria-labelledby="app-title">
         <p className="app-kicker">Secure Electron + React starter</p>
         <h1 id="app-title">laser-competition</h1>
