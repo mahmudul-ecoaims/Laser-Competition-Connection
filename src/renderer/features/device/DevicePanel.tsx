@@ -13,8 +13,10 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
     mode,
     bleDevices,
     serialPorts,
-    status,
-    sipMode,
+    bleStatus,
+    serialStatus,
+    bleSipMode,
+    serialSipMode,
     scanBle,
     stopBleScan,
     connectBle,
@@ -24,6 +26,12 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
     writeSip,
     writeInfo,
   } = device;
+
+  // This panel only renders one transport at a time (whichever screen is
+  // showing), but both keep connecting/reading/writing independently in the
+  // background — see agentMemory/memories/device-transport-abstraction.md.
+  const status = mode === 'ble' ? bleStatus : serialStatus;
+  const sipMode = mode === 'ble' ? bleSipMode : serialSipMode;
 
   const [baudRate, setBaudRate] = useState(DEFAULT_BAUD_RATE);
   const [commandError, setCommandError] = useState<string | null>(null);
@@ -42,8 +50,17 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
   const isConnected = status.status === 'connected';
   const isConnecting = status.status === 'connecting';
   const isDisconnecting = status.status === 'disconnecting';
-  const connectedTargetId = isConnected && status.transport === mode ? status.targetId : undefined;
+  const connectedTargetId = isConnected ? status.targetId : undefined;
   const connectionLocksList = isConnected || isConnecting || isDisconnecting;
+
+  // While connected, hide every other discovered device/port — only the
+  // connected one is shown. Disconnecting re-triggers a fresh scan (below)
+  // so the full list comes back once it's no longer connected.
+  const visibleBleDevices = isConnected ? bleDevices.filter((d) => d.id === connectedTargetId) : bleDevices;
+  const visibleSerialPorts = isConnected ? serialPorts.filter((p) => p.path === connectedTargetId) : serialPorts;
+
+  const disconnectBleAndRescan = () => void disconnect(mode).then(() => scanBle());
+  const disconnectSerialAndRescan = () => void disconnect(mode).then(() => listSerialPorts());
 
   return (
     <div className="ble-panel">
@@ -66,17 +83,17 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
           </div>
 
           <ul className="ble-device-list">
-            {bleDevices.map((bleDevice) => {
+            {visibleBleDevices.map((bleDevice) => {
               const isSelected = connectedTargetId === bleDevice.id;
 
               return (
                 <li key={bleDevice.id} className={isSelected ? 'ble-device-list-item--selected' : undefined}>
                   <span>{bleDevice.name ?? 'Unknown device'}</span>
                   <span className="ble-device-rssi">{bleDevice.rssi} dBm</span>
-                  {isSelected && <span className="device-selected-badge">Selected</span>}
                   <button
                     type="button"
-                    onClick={() => void (isSelected ? disconnect() : connectBle(bleDevice.id))}
+                    className={isSelected ? 'device-disconnect-button' : undefined}
+                    onClick={() => (isSelected ? disconnectBleAndRescan() : void connectBle(bleDevice.id))}
                     disabled={!isSelected && connectionLocksList}
                   >
                     {isSelected ? 'Disconnect' : 'Connect'}
@@ -84,14 +101,14 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
                 </li>
               );
             })}
-            {bleDevices.length === 0 && <li className="ble-device-empty">No devices found yet.</li>}
+            {visibleBleDevices.length === 0 && <li className="ble-device-empty">No devices found yet.</li>}
           </ul>
         </>
       ) : (
         <>
           <div className="ble-actions">
             <button type="button" onClick={() => void listSerialPorts()} disabled={connectionLocksList}>
-              Refresh ports
+              Scan
             </button>
             <label className="serial-baud">
               Baud
@@ -110,20 +127,20 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
           </div>
 
           <ul className="ble-device-list">
-            {serialPorts.map((port) => {
+            {visibleSerialPorts.map((port) => {
               const isSelected = connectedTargetId === port.path;
 
               return (
                 <li key={port.path} className={isSelected ? 'ble-device-list-item--selected' : undefined}>
                   <span>{port.path}</span>
                   <span className="ble-device-rssi">{port.manufacturer ?? 'Unknown manufacturer'}</span>
-                  {isSelected && <span className="device-selected-badge">Selected</span>}
                   <button type="button" onClick={() => setInfoPort(port)}>
                     More info
                   </button>
                   <button
                     type="button"
-                    onClick={() => void (isSelected ? disconnect() : connectSerial(port.path, baudRate))}
+                    className={isSelected ? 'device-disconnect-button' : undefined}
+                    onClick={() => (isSelected ? disconnectSerialAndRescan() : void connectSerial(port.path, baudRate))}
                     disabled={!isSelected && connectionLocksList}
                   >
                     {isSelected ? 'Disconnect' : 'Connect'}
@@ -131,7 +148,7 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
                 </li>
               );
             })}
-            {serialPorts.length === 0 && (
+            {visibleSerialPorts.length === 0 && (
               <li className="ble-device-empty">No ports found - click Refresh.</li>
             )}
           </ul>
@@ -144,7 +161,7 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
             type="button"
             className={sipMode === 'S' ? 'sip-mode-button--active' : undefined}
             aria-pressed={sipMode === 'S'}
-            onClick={() => void runCommand(() => writeSip('S'))}
+            onClick={() => void runCommand(() => writeSip(mode, 'S'))}
           >
             Standby mode
           </button>
@@ -152,11 +169,11 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
             type="button"
             className={sipMode === 'L' ? 'sip-mode-button--active' : undefined}
             aria-pressed={sipMode === 'L'}
-            onClick={() => void runCommand(() => writeSip('L'))}
+            onClick={() => void runCommand(() => writeSip(mode, 'L'))}
           >
             Live mode
           </button>
-          <button type="button" onClick={() => void runCommand(() => writeInfo())}>
+          <button type="button" onClick={() => void runCommand(() => writeInfo(mode))}>
             Request Info
           </button>
         </div>

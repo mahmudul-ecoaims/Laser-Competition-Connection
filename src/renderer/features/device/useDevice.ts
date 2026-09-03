@@ -3,13 +3,13 @@ import { DEFAULT_BAUD_RATE } from '../../../shared/constants/serial';
 import { DEFAULT_DEVICE_SETTINGS } from '../../../shared/constants/settings';
 import type { BleDeviceInfo } from '../../../shared/types/ble';
 import type { SipSyncKind } from '../../../shared/types/commands';
-import type { DeviceMessage, DeviceStatusEvent } from '../../../shared/types/device';
+import type { DeviceMessage, DeviceStatusEvent, DeviceTransportKind } from '../../../shared/types/device';
 import type { SerialPortInfo } from '../../../shared/types/serial';
 import type { DeviceSettings } from '../../../shared/types/settings';
 
 const MAX_MESSAGES = 500;
 
-export type DeviceMode = 'ble' | 'serial';
+export type DeviceMode = DeviceTransportKind;
 
 /** Matches the device's SIP reply so we can tell which sync kind (S/L) it
  * just confirmed — same `SIP:<lane>:<kind>:...` shape as the outgoing
@@ -25,21 +25,31 @@ const parseSipReplyKind = (message: DeviceMessage): SipSyncKind | null => {
 };
 
 export const useDevice = () => {
+  // BLE and serial connect, read, and write independently and at the same
+  // time (see agentMemory/memories/device-transport-abstraction.md) — every
+  // piece of state below that used to be a single shared value is now one
+  // value per transport. `mode`/`setMode` is purely which screen is
+  // currently displayed (App.tsx); it does not gate which transport(s) are
+  // actually connected — both keep running regardless of which is shown.
   const [mode, setMode] = useState<DeviceMode>('ble');
   const [bleDevices, setBleDevices] = useState<BleDeviceInfo[]>([]);
   const [serialPorts, setSerialPorts] = useState<SerialPortInfo[]>([]);
-  const [status, setStatus] = useState<DeviceStatusEvent>({ transport: 'ble', status: 'idle' });
-  const [messages, setMessages] = useState<DeviceMessage[]>([]);
-  // Which SIP sync kind the device last confirmed via its reply (not set on
-  // send — only once a matching `SIP:<lane>:<kind>:...` reply comes back).
-  // Neither is active until the first reply arrives, and a reply for one
-  // kind deactivates the other — see agentMemory/memories/sip-time-sync-protocol.md.
-  const [sipMode, setSipMode] = useState<SipSyncKind | null>(null);
+  const [bleStatus, setBleStatus] = useState<DeviceStatusEvent>({ transport: 'ble', status: 'idle' });
+  const [serialStatus, setSerialStatus] = useState<DeviceStatusEvent>({ transport: 'serial', status: 'idle' });
+  const [bleMessages, setBleMessages] = useState<DeviceMessage[]>([]);
+  const [serialMessages, setSerialMessages] = useState<DeviceMessage[]>([]);
+  // Which SIP sync kind each transport's device last confirmed via its
+  // reply (not set on send — only once a matching `SIP:<lane>:<kind>:...`
+  // reply comes back). Neither is active until the first reply arrives, and
+  // a reply for one kind deactivates the other — see
+  // agentMemory/memories/sip-time-sync-protocol.md.
+  const [bleSipMode, setBleSipMode] = useState<SipSyncKind | null>(null);
+  const [serialSipMode, setSerialSipMode] = useState<SipSyncKind | null>(null);
   const [settings, setSettings] = useState<DeviceSettings>(DEFAULT_DEVICE_SETTINGS);
   // The one settings field currently mid-write, if any. Only one at a time:
   // writes are serialized so a field's row can show a loading state until
   // its write settles, and so two fields never race each other over the
-  // same BLE characteristic.
+  // same BLE characteristic. BLE-only feature, unaffected by serial.
   const [pendingSettingsField, setPendingSettingsField] = useState<keyof DeviceSettings | null>(null);
   // Set when a write's FUK confirmation times out (or the device
   // disconnects mid-write); cleared at the start of the next attempt.
@@ -53,12 +63,19 @@ export const useDevice = () => {
       });
     });
 
-    const offStatus = window.electronAPI.device.onStatusChanged(setStatus);
+    const offStatus = window.electronAPI.device.onStatusChanged((event) => {
+      if (event.transport === 'ble') setBleStatus(event);
+      else setSerialStatus(event);
+    });
 
     const offMessage = window.electronAPI.device.onMessage((message) => {
+      const setMessages = message.transport === 'ble' ? setBleMessages : setSerialMessages;
       setMessages((current) => [...current, message].slice(-MAX_MESSAGES));
       const sipKind = parseSipReplyKind(message);
-      if (sipKind) setSipMode(sipKind);
+      if (sipKind) {
+        if (message.transport === 'ble') setBleSipMode(sipKind);
+        else setSerialSipMode(sipKind);
+      }
     });
 
     return () => {
@@ -76,8 +93,8 @@ export const useDevice = () => {
   const stopBleScan = useCallback(() => window.electronAPI.ble.stopScan(), []);
 
   const connectBle = useCallback((deviceId: string) => {
-    setMessages([]);
-    setSipMode(null);
+    setBleMessages([]);
+    setBleSipMode(null);
     // The device's actual settings aren't read back on connect, so the UI
     // resets to the same defaults the main process assumes — see
     // agentMemory/memories/ble-settings-write-protocol.md.
@@ -88,22 +105,41 @@ export const useDevice = () => {
   }, []);
 
   const listSerialPorts = useCallback(async () => {
+    // Clear the current list first so a re-scan doesn't show stale ports
+    // while the new scan is in flight — the list only reappears once the
+    // fresh result comes back.
+    setSerialPorts([]);
     const ports = await window.electronAPI.serial.listPorts();
     setSerialPorts(ports);
     return ports;
   }, []);
 
   const connectSerial = useCallback((path: string, baudRate: number = DEFAULT_BAUD_RATE) => {
-    setMessages([]);
-    setSipMode(null);
+    setSerialMessages([]);
+    setSerialSipMode(null);
     return window.electronAPI.serial.connect(path, baudRate);
   }, []);
 
-  const disconnect = useCallback(() => window.electronAPI.device.disconnect(), []);
-  const writeCommand = useCallback((data: Uint8Array) => window.electronAPI.device.writeCommand(data), []);
-  const writeSip = useCallback((kind: SipSyncKind) => window.electronAPI.device.writeSip(kind), []);
-  const writeInfo = useCallback(() => window.electronAPI.device.writeInfo(), []);
-  const clearMessages = useCallback(() => setMessages([]), []);
+  const disconnect = useCallback(
+    (transport: DeviceTransportKind) => window.electronAPI.device.disconnect(transport),
+    [],
+  );
+  const writeCommand = useCallback(
+    (transport: DeviceTransportKind, data: Uint8Array) => window.electronAPI.device.writeCommand(transport, data),
+    [],
+  );
+  const writeSip = useCallback(
+    (transport: DeviceTransportKind, kind: SipSyncKind) => window.electronAPI.device.writeSip(transport, kind),
+    [],
+  );
+  const writeInfo = useCallback(
+    (transport: DeviceTransportKind) => window.electronAPI.device.writeInfo(transport),
+    [],
+  );
+  const clearMessages = useCallback((transport: DeviceTransportKind) => {
+    if (transport === 'ble') setBleMessages([]);
+    else setSerialMessages([]);
+  }, []);
 
   // Re-selecting the field's already-confirmed value is a no-op — skips the
   // write entirely, no loading state. Otherwise shows `key` as pending
@@ -137,9 +173,12 @@ export const useDevice = () => {
     setMode,
     bleDevices,
     serialPorts,
-    status,
-    messages,
-    sipMode,
+    bleStatus,
+    serialStatus,
+    bleMessages,
+    serialMessages,
+    bleSipMode,
+    serialSipMode,
     settings,
     pendingSettingsField,
     settingsError,

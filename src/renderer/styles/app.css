@@ -444,19 +444,19 @@ h2 {
   font-weight: 700;
 }
 
-.device-selected-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 26px;
-  padding: 4px 9px;
-  border: 1px solid rgba(120, 216, 207, 0.28);
-  border-radius: 999px;
-  background: rgba(120, 216, 207, 0.14);
-  color: #9be5df;
-  font-size: 0.72rem;
-  font-weight: 900;
-  text-transform: uppercase;
+/* Disconnect button for a connected BLE/serial device — filled red,
+   matching how the first .ble-actions button gets a filled teal treatment
+   for its own "primary action" role. */
+.device-disconnect-button {
+  border-color: #e5544a;
+  background: #e5544a;
+  color: #2a0805;
+}
+
+.device-disconnect-button:hover:not(:disabled) {
+  background: #ff7568;
+  border-color: #ff7568;
+  color: #2a0805;
 }
 
 .ble-device-list button {

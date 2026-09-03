@@ -11,9 +11,9 @@ export const IPC_CHANNELS = {
   serialListPorts: 'serial:list-ports',
   serialConnect: 'serial:connect',
 
-  // Generic device control (renderer -> main) — routes to whichever
-  // transport is currently active, so the renderer doesn't need to know
-  // which one that is.
+  // Generic device control (renderer -> main) — BLE and serial can both be
+  // connected at once, so these all take an explicit transport argument
+  // saying which one to act on.
   deviceWriteCommand: 'device:write-command',
   deviceWriteSip: 'device:write-sip',
   deviceWriteInfo: 'device:write-info',

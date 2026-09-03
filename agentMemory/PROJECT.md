@@ -3,8 +3,8 @@
 ## What this is
 
 Electron + React + TypeScript desktop app (electron-forge + Vite) that
-connects to the laser-competition target hardware — over BLE or a wired
-serial/USB connection, one at a time (see
+connects to the laser-competition target hardware — over BLE and/or a wired
+serial/USB connection, both at once, each capped at one device (see
 [[device-transport-abstraction]]) — and exchanges commands/telemetry with
 it. It's a companion to an existing React Native mobile app (not in this
 repo) that talks to the same device over BLE — `docs/constants/index.ts` is
@@ -25,7 +25,7 @@ and NOT used here. Only the BLE UUIDs were carried over, into
   - `main.ts` — app lifecycle, wires IPC handlers, creates the window
   - `windows/mainWindow.ts` — BrowserWindow creation + trusted-origin checks for navigation/IPC
   - `ipc/registerHandlers.ts` — every `ipcMain.handle(...)`; validates the sender before each one
-  - `services/deviceManager.ts` — tracks the single active transport (BLE or serial) and dispatches generic write/disconnect/broadcast to it
+  - `services/deviceManager.ts` — tracks one active-transport slot per kind (BLE and serial can both be connected) and dispatches generic write/disconnect/broadcast to whichever kind the caller specifies
   - `services/messageFramer.ts` — buffers raw bytes into complete messages; the one place that defines message framing (splits on `\r` or `\n`, see [[ble-cr-only-line-endings]])
   - `services/bleService.ts` — noble wrapper: scan/connect/disconnect/write, subscribes to notify/indicate characteristics
   - `services/serialService.ts` — serialport wrapper: list ports/connect/disconnect/write

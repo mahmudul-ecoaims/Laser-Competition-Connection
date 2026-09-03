@@ -1,6 +1,7 @@
 import { app, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { IPC_CHANNELS } from '../../../shared/ipc/channels';
 import type { SipSyncKind } from '../../../shared/types/commands';
+import type { DeviceTransportKind } from '../../../shared/types/device';
 import type { DeviceSettings } from '../../../shared/types/settings';
 import { isTrustedRendererUrl } from '../windows/mainWindow';
 import { bleService } from '../services/bleService';
@@ -53,24 +54,25 @@ export const registerIpcHandlers = () => {
     return serialService.connect(path, baudRate);
   });
 
-  // Generic — routes to whichever transport is currently active
-  ipcMain.handle(IPC_CHANNELS.deviceWriteCommand, (event, data: Uint8Array) => {
+  // Generic — BLE and serial can both be connected at once now, so the
+  // renderer says which transport it means.
+  ipcMain.handle(IPC_CHANNELS.deviceWriteCommand, (event, transport: DeviceTransportKind, data: Uint8Array) => {
     validateIpcSender(event);
-    return deviceManager.writeCommand(data);
+    return deviceManager.writeCommand(transport, data);
   });
 
-  ipcMain.handle(IPC_CHANNELS.deviceWriteSip, (event, kind: SipSyncKind) => {
+  ipcMain.handle(IPC_CHANNELS.deviceWriteSip, (event, transport: DeviceTransportKind, kind: SipSyncKind) => {
     validateIpcSender(event);
-    return deviceManager.writeSip(kind);
+    return deviceManager.writeSip(transport, kind);
   });
 
-  ipcMain.handle(IPC_CHANNELS.deviceWriteInfo, (event) => {
+  ipcMain.handle(IPC_CHANNELS.deviceWriteInfo, (event, transport: DeviceTransportKind) => {
     validateIpcSender(event);
-    return deviceManager.writeInfo();
+    return deviceManager.writeInfo(transport);
   });
 
-  ipcMain.handle(IPC_CHANNELS.deviceDisconnect, (event) => {
+  ipcMain.handle(IPC_CHANNELS.deviceDisconnect, (event, transport: DeviceTransportKind) => {
     validateIpcSender(event);
-    return deviceManager.disconnectActive();
+    return deviceManager.disconnect(transport);
   });
 };

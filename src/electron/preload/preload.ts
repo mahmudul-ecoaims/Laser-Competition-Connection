@@ -28,10 +28,10 @@ const electronAPI: ElectronAPI = {
   },
 
   device: {
-    writeCommand: (data) => ipcRenderer.invoke(IPC_CHANNELS.deviceWriteCommand, data),
-    writeSip: (kind) => ipcRenderer.invoke(IPC_CHANNELS.deviceWriteSip, kind),
-    writeInfo: () => ipcRenderer.invoke(IPC_CHANNELS.deviceWriteInfo),
-    disconnect: () => ipcRenderer.invoke(IPC_CHANNELS.deviceDisconnect),
+    writeCommand: (transport, data) => ipcRenderer.invoke(IPC_CHANNELS.deviceWriteCommand, transport, data),
+    writeSip: (transport, kind) => ipcRenderer.invoke(IPC_CHANNELS.deviceWriteSip, transport, kind),
+    writeInfo: (transport) => ipcRenderer.invoke(IPC_CHANNELS.deviceWriteInfo, transport),
+    disconnect: (transport) => ipcRenderer.invoke(IPC_CHANNELS.deviceDisconnect, transport),
     onStatusChanged: (callback) =>
       subscribe<DeviceStatusEvent>(IPC_CHANNELS.deviceStatusChanged, callback),
     onMessage: (callback) => subscribe<DeviceMessage>(IPC_CHANNELS.deviceMessageReceived, callback),

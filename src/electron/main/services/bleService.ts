@@ -150,6 +150,12 @@ class BleService {
       throw new Error(`Unknown device id: ${deviceId}`);
     }
 
+    // At most one BLE device connected at a time — drop the current one
+    // first (mirrors serialService's same guard for serial ports).
+    if (this.connectedPeripheral) {
+      await this.disconnect();
+    }
+
     await this.stopScan();
     deviceManager.setStatus({ transport: 'ble', status: 'connecting', targetId: deviceId });
     this.framers.clear();
@@ -159,7 +165,7 @@ class BleService {
       this.connectedPeripheral = null;
       this.commandCharacteristic = null;
       this.settingsCharacteristic = null;
-      deviceManager.setActive(null);
+      deviceManager.setActive('ble', null);
       deviceManager.setStatus({ transport: 'ble', status: 'disconnected', targetId: deviceId });
       // Unstick any writeSettings() still waiting on a FUK confirmation
       // instead of making it wait out the full timeout.
@@ -189,7 +195,7 @@ class BleService {
       }
 
       this.connectedPeripheral = peripheral;
-      deviceManager.setActive({
+      deviceManager.setActive('ble', {
         kind: 'ble',
         write: (data) => this.writeCommand(data),
         disconnect: () => this.disconnect(),

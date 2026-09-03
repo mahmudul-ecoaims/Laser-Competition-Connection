@@ -11,7 +11,13 @@ type Screen = 'choice' | DeviceMode;
 const App = () => {
   const [screen, setScreen] = useState<Screen>('choice');
   const device = useDevice();
-  const isConnected = device.status.status === 'connected';
+  // BLE and serial connect/read/write independently and at the same time —
+  // see agentMemory/memories/device-transport-abstraction.md. `screen` only
+  // picks which one is currently displayed; the other keeps running in the
+  // background and its messages keep accumulating until it's shown again.
+  const status = screen === 'ble' ? device.bleStatus : screen === 'serial' ? device.serialStatus : null;
+  const isConnected = status?.status === 'connected';
+  const messages = screen === 'ble' ? device.bleMessages : device.serialMessages;
 
   const selectMode = (mode: DeviceMode) => {
     device.setMode(mode);
@@ -39,7 +45,11 @@ const App = () => {
         </header>
 
         {screen === 'choice' ? (
-          <ConnectionChoiceScreen onSelect={selectMode} />
+          <ConnectionChoiceScreen
+            onSelect={selectMode}
+            bleStatus={device.bleStatus.status}
+            serialStatus={device.serialStatus.status}
+          />
         ) : (
           <div className="device-screen">
             <div className={`app-content${isConnected ? ' app-content--split' : ''}`}>
@@ -47,7 +57,9 @@ const App = () => {
                 <DevicePanel device={device} />
                 {isConnected && device.mode === 'ble' && <DeviceSettingsPanel device={device} />}
               </div>
-              {isConnected && <DeviceTerminal messages={device.messages} onClear={device.clearMessages} />}
+              {isConnected && (
+                <DeviceTerminal messages={messages} onClear={() => device.clearMessages(screen)} />
+              )}
             </div>
           </div>
         )}

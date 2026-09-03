@@ -63,8 +63,11 @@ class SerialService {
 
       port.on('close', () => {
         this.port = null;
-        deviceManager.setActive(null);
-        deviceManager.setStatus({ transport: 'serial', status: 'disconnected', targetId: path });
+        deviceManager.setActive('serial', null);
+        // Serial has no "disconnected" state distinct from "idle" (unlike
+        // BLE, which shows a brief 'disconnected' before settling) — once
+        // the port closes it just goes back to idle.
+        deviceManager.setStatus({ transport: 'serial', status: 'idle', targetId: path });
       });
 
       port.on('error', (error) => {
@@ -76,7 +79,7 @@ class SerialService {
         });
       });
 
-      deviceManager.setActive({
+      deviceManager.setActive('serial', {
         kind: 'serial',
         write: (data) => this.write(data),
         disconnect: () => this.disconnect(),

@@ -7,6 +7,9 @@
 
 export type DeviceTransportKind = 'ble' | 'serial';
 
+/** `disconnected` is BLE-only (a brief state after the peripheral drops,
+ * before it'd be reused for a new scan) — serial goes straight back to
+ * `idle` once its port closes, since there's nothing else to settle. */
 export type DeviceConnectionStatus =
   | 'idle'
   | 'scanning'

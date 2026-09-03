@@ -6,9 +6,10 @@ import { encodeInfo, encodeSip } from './deviceCommandProtocol';
 
 /**
  * The common surface both bleService and serialService register when they
- * successfully connect. Only one transport is active at a time (see
- * agentMemory/memories/device-transport-abstraction.md) — connecting one
- * way implies the other is not connected.
+ * successfully connect. BLE and serial can both be connected at the same
+ * time — each transport keeps its own slot in `DeviceManager.active` (see
+ * agentMemory/memories/device-transport-abstraction.md) — but each service
+ * enforces at most one device of its own kind at a time.
  */
 export interface ActiveDeviceTransport {
   readonly kind: DeviceTransportKind;
@@ -17,32 +18,43 @@ export interface ActiveDeviceTransport {
 }
 
 class DeviceManager {
-  private active: ActiveDeviceTransport | null = null;
+  /**
+   * One slot per transport kind — both can be connected at once (see
+   * agentMemory/memories/device-transport-abstraction.md). Every method
+   * below that used to implicitly mean "the" active transport now takes an
+   * explicit `transport` argument to say which slot it means.
+   */
+  private readonly active: Record<DeviceTransportKind, ActiveDeviceTransport | null> = {
+    ble: null,
+    serial: null,
+  };
 
-  setActive(transport: ActiveDeviceTransport | null): void {
-    this.active = transport;
+  setActive(transport: DeviceTransportKind, value: ActiveDeviceTransport | null): void {
+    this.active[transport] = value;
   }
 
-  getActiveKind(): DeviceTransportKind | null {
-    return this.active?.kind ?? null;
+  isConnected(transport: DeviceTransportKind): boolean {
+    return this.active[transport] !== null;
   }
 
-  async writeCommand(data: Uint8Array): Promise<void> {
-    if (!this.active) {
+  async writeCommand(transport: DeviceTransportKind, data: Uint8Array): Promise<void> {
+    const active = this.active[transport];
+    if (!active) {
       throw new Error('No device connected');
     }
-    await this.active.write(data);
+    await active.write(data);
   }
 
   /**
-   * Writes a plain-text command line over whichever transport is active
-   * and publishes it as an outgoing message, so it shows up in the
-   * terminal like the FU1/FU2 settings writes do. Shared by writeSip and
-   * writeInfo — see agentMemory/memories/sip-time-sync-protocol.md. Both
-   * are fire-and-forget: no reply is awaited.
+   * Writes a plain-text command line over the given transport and
+   * publishes it as an outgoing message, so it shows up in the terminal
+   * like the FU1/FU2 settings writes do. Shared by writeSip and writeInfo
+   * — see agentMemory/memories/sip-time-sync-protocol.md. Both are
+   * fire-and-forget: no reply is awaited.
    */
-  private async writeLine(line: string): Promise<void> {
-    if (!this.active) {
+  private async writeLine(transport: DeviceTransportKind, line: string): Promise<void> {
+    const active = this.active[transport];
+    if (!active) {
       throw new Error('No device connected');
     }
     // `line` is always plain ASCII (digits/letters/colons — e.g. "INFO01",
@@ -58,13 +70,13 @@ class DeviceManager {
     // (unterminated, matching the RN reference's FU1/FU2 writes) since
     // that path isn't reported broken and characteristic writes don't need
     // one. See agentMemory/memories/sip-time-sync-protocol.md.
-    const wireLine = this.active.kind === 'serial' ? `${line}\r\n` : line;
+    const wireLine = transport === 'serial' ? `${line}\r\n` : line;
     const buffer = Buffer.from(wireLine, 'utf8');
-    await this.active.write(buffer);
+    await active.write(buffer);
     this.publishMessage({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       timestamp: Date.now(),
-      transport: this.active.kind,
+      transport,
       source: 'command',
       direction: 'out',
       hex: buffer.toString('hex'),
@@ -73,18 +85,19 @@ class DeviceManager {
   }
 
   /** `SIP:01:<kind>:hhmmsscc` time-sync command, `kind` being `S` or `L`. */
-  async writeSip(kind: SipSyncKind): Promise<void> {
-    await this.writeLine(encodeSip(kind));
+  async writeSip(transport: DeviceTransportKind, kind: SipSyncKind): Promise<void> {
+    await this.writeLine(transport, encodeSip(kind));
   }
 
   /** `INFO01` command. */
-  async writeInfo(): Promise<void> {
-    await this.writeLine(encodeInfo());
+  async writeInfo(transport: DeviceTransportKind): Promise<void> {
+    await this.writeLine(transport, encodeInfo());
   }
 
-  async disconnectActive(): Promise<void> {
-    if (!this.active) return;
-    await this.active.disconnect();
+  async disconnect(transport: DeviceTransportKind): Promise<void> {
+    const active = this.active[transport];
+    if (!active) return;
+    await active.disconnect();
   }
 
   broadcast(channel: string, payload: unknown): void {

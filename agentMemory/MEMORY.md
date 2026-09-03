@@ -7,7 +7,7 @@ architecture/context reference.
 
 - [ble-target-uuids](memories/ble-target-uuids.md) — GATT service/characteristic UUIDs for the target device
 - [ble-architecture-decision](memories/ble-architecture-decision.md) — why noble-in-main-process over Web Bluetooth
-- [device-transport-abstraction](memories/device-transport-abstraction.md) — BLE and serial are two switchable transports unified behind deviceManager
+- [device-transport-abstraction](memories/device-transport-abstraction.md) — BLE and serial are two independent transports, connectable at the same time, unified behind deviceManager
 - [serial-transport](memories/serial-transport.md) — serialport package, native-module handling, baud rate
 - [serial-port-info-fields](memories/serial-port-info-fields.md) — all 7 SerialPortInfo fields, reliability, and the "More info" modal that shows them
 - [ble-cr-only-line-endings](memories/ble-cr-only-line-endings.md) — BLE lines often end in bare \r with \n arriving late; framer splits on either
