@@ -126,6 +126,9 @@ class SerialService {
         kind: 'serial',
         write: (data) => this.write(data),
         writeSettings: (partial) => this.writeSettings(partial),
+        // Serial has only one wire, no separate "characteristic" — same
+        // underlying write as `write()`, see ActiveDeviceTransport.writeGenericCommand.
+        writeGenericCommand: (data) => this.write(data),
         disconnect: () => this.disconnect(),
       });
       deviceManager.setStatus({ transport: 'serial', status: 'connected', targetId: path });

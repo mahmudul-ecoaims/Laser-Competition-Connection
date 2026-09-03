@@ -199,6 +199,7 @@ class BleService {
         kind: 'ble',
         write: (data) => this.writeCommand(data),
         writeSettings: (partial) => this.writeSettings(partial),
+        writeGenericCommand: (data) => this.writeGenericCommand(data),
         disconnect: () => this.disconnect(),
       });
       deviceManager.setStatus({ transport: 'ble', status: 'connected', targetId: deviceId });
@@ -228,6 +229,24 @@ class BleService {
       throw new Error('Not connected to a device');
     }
     await this.commandCharacteristic.writeAsync(Buffer.from(data), false);
+  }
+
+  /**
+   * Backs `ActiveDeviceTransport.writeGenericCommand` — the SIP/INFO
+   * fire-and-forget lines from `deviceManager.writeLine`. Unlike
+   * `writeCommand`, this targets the *Settings* characteristic, not
+   * Command — confirmed against a second-hand device spec (another RN
+   * app's working INFO/master-discovery implementation) that gives the
+   * Settings characteristic's UUID as the write target for `INFO01` and
+   * expects a plain, unterminated ASCII write. See
+   * agentMemory/memories/sip-time-sync-protocol.md. Doesn't publish a
+   * DeviceMessage itself — `deviceManager.writeLine` already does that.
+   */
+  async writeGenericCommand(data: Uint8Array): Promise<void> {
+    if (!this.settingsCharacteristic) {
+      throw new Error('Settings characteristic not available on this device');
+    }
+    await this.settingsCharacteristic.writeAsync(Buffer.from(data), false);
   }
 
   /**

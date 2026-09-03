@@ -16,6 +16,18 @@ export interface ActiveDeviceTransport {
   readonly kind: DeviceTransportKind;
   write(data: Uint8Array): Promise<void>;
   writeSettings(partial: Partial<DeviceSettings>): Promise<DeviceSettings>;
+  /**
+   * Raw fire-and-forget ASCII command line, backing `writeSip`/`writeInfo`
+   * — see agentMemory/memories/sip-time-sync-protocol.md. Deliberately
+   * separate from `write()`: over BLE these go to the *Settings*
+   * characteristic, not the Command characteristic `write()` targets (a
+   * second-hand device spec for another RN app's INFO/discovery command
+   * confirms the Settings characteristic UUID and "no newline" — see that
+   * memory for how this was found). Over serial there's only one port, so
+   * this is the same underlying write as `write()`, just with the `\r\n`
+   * terminator serial needs.
+   */
+  writeGenericCommand(data: Uint8Array): Promise<void>;
   disconnect(): Promise<void>;
 }
 
@@ -61,20 +73,22 @@ class DeviceManager {
     }
     // `line` is always plain ASCII (digits/letters/colons — e.g. "INFO01",
     // "SIP:01:S:14030742"), so utf8 vs ascii encoding is equivalent here;
-    // `active.write` hands this Buffer straight to the wire unchanged for
-    // both transports (serialService.write does `port.write(Buffer.from(data), ...)`
-    // with no re-encoding — see agentMemory/memories/sip-time-sync-protocol.md).
+    // `active.writeGenericCommand` hands this Buffer straight to the wire
+    // unchanged for both transports (serialService.write does
+    // `port.write(Buffer.from(data), ...)` with no re-encoding — see
+    // agentMemory/memories/sip-time-sync-protocol.md).
     //
-    // A BLE characteristic write is self-framed (one write = one complete
-    // message), but a serial line is a continuous byte stream — the
-    // firmware needs an explicit terminator to know a command is finished,
-    // or it never replies. Confirmed \r\n over serial; BLE is left as-is
-    // (unterminated, matching the RN reference's FU1/FU2 writes) since
-    // that path isn't reported broken and characteristic writes don't need
-    // one. See agentMemory/memories/sip-time-sync-protocol.md.
+    // Only serial gets a `\r\n` terminator — confirmed required on
+    // hardware, since a serial line is a continuous byte stream. BLE is a
+    // plain unterminated write (confirmed against a second-hand device
+    // spec for this exact command — see
+    // agentMemory/memories/sip-time-sync-protocol.md); a `\r\n` was tried
+    // there too at one point and did not fix it, because the real bug was
+    // the target characteristic, not the terminator (see
+    // `writeGenericCommand` on `ActiveDeviceTransport` above).
     const wireLine = transport === 'serial' ? `${line}\r\n` : line;
     const buffer = Buffer.from(wireLine, 'utf8');
-    await active.write(buffer);
+    await active.writeGenericCommand(buffer);
     this.publishMessage({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       timestamp: Date.now(),

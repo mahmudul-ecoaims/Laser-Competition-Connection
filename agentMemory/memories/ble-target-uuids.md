@@ -17,3 +17,10 @@ Source of truth is the React Native app's `docs/constants/index.ts`
 
 If the device firmware ever changes these UUIDs, update
 `src/shared/constants/ble.ts` — nowhere else.
+
+Cross-confirmed independently: another RN app implementing the same
+device's `INFO01` master-discovery command documents its write target as
+`e7add780-b042-4876-aae1-11285535f721` — i.e. this app's Settings
+characteristic, not Command. That mismatch (this app was writing SIP/INFO
+to Command) was the actual cause of BLE SIP/INFO getting no reply — see
+[[sip-time-sync-protocol]].
