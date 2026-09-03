@@ -18,6 +18,8 @@ architecture/context reference.
 - [settings-write-implementation](memories/settings-write-implementation.md) — how FU1/FU2 writes were implemented: state location, defaults, currentTime assumption
 - [sip-time-sync-protocol](memories/sip-time-sync-protocol.md) — outgoing SIP:01:<S|L>:hhmmsscc and INFO01 fire-and-forget commands; BLE variant was silently going to the wrong (Command, not Settings) characteristic — fixed via new writeGenericCommand, confirmed working on hardware; plus parsing INFO's IN<row> master discovery reply
 - [serial-settings-write-protocol](memories/serial-settings-write-protocol.md) — serial's settings write is a single FUK:01:AA:BB:C:DD:EE:FF:0000000 line (not BLE's FU1/FU2 pair), Standby-mode only, confirmed on hardware
+- [ble-fuk-live-settings-sync](memories/ble-fuk-live-settings-sync.md) — every valid incoming BLE FUK updates both the terminal and live Settings state, including unsolicited messages
+- [serial-fuk-live-settings-sync](memories/serial-fuk-live-settings-sync.md) — every valid incoming serial FUK updates both the terminal and live Settings state, including unsolicited messages
 - [electron-forge-native-rebuild](memories/electron-forge-native-rebuild.md) — native module rebuild is automatic
 - [dev-clean-start-shutdown](memories/dev-clean-start-shutdown.md) — npm start's scripts/start-clean.mjs sweeps stray forge/vite/electron processes on both startup and Ctrl+C
 

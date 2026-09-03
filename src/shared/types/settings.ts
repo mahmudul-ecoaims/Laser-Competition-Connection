@@ -1,3 +1,5 @@
+import type { DeviceTransportKind } from './device';
+
 /**
  * Device settings pushed to the target over the BLE Settings characteristic
  * as FU1/FU2 writes — see
@@ -14,4 +16,10 @@ export interface DeviceSettings {
   shotsHeat: number;
   /** time limit per heat in seconds, 10-50 */
   secondsHeat: number;
+}
+
+/** Settings parsed from an incoming device FUK message. */
+export interface DeviceSettingsEvent {
+  transport: DeviceTransportKind;
+  settings: DeviceSettings;
 }

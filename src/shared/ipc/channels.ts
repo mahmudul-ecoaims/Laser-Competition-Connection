@@ -23,6 +23,7 @@ export const IPC_CHANNELS = {
   bleDeviceDiscovered: 'ble:device-discovered',
   deviceStatusChanged: 'device:status-changed',
   deviceMessageReceived: 'device:message-received',
+  deviceSettingsChanged: 'device:settings-changed',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

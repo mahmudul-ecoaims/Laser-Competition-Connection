@@ -137,7 +137,13 @@ class BleService {
         // characteristic, so FUK arrives there in practice — but parse it
         // regardless of `source` in case firmware ever echoes it elsewhere.
         const fuk = parseFukMessage(text);
-        if (fuk) this.fukEvents.emit('fuk', fuk);
+        if (fuk) {
+          // Every valid FUK is the device's latest actual settings, even when
+          // it was spontaneous rather than a reply to an in-flight write.
+          this.currentSettings = fuk;
+          deviceManager.publishSettings({ transport: 'ble', settings: fuk });
+          this.fukEvents.emit('fuk', fuk);
+        }
       }
     });
 

@@ -64,10 +64,12 @@ and NOT used here. Only the BLE UUIDs were carried over, into
 
 - No UI wired to send actual commands (`writeCommand`) yet. Settings
   (`writeSettings`) now has UI and waits for the device's `FUK` reply to
-  confirm each write — see [[settings-write-implementation]] — but its
-  in-memory state still resets to hardcoded defaults on connect rather than
-  requesting the device's actual current settings (no such "read" request
-  is sent on connect, only reactively on the first write).
+  confirm each write — see [[settings-write-implementation]]. Its in-memory
+  state still resets to hardcoded defaults on connect because no explicit
+  settings-read request is sent, but every valid incoming `FUK` now replaces
+  both the main-process and renderer Settings state for its own transport —
+  see [[ble-fuk-live-settings-sync]] and
+  [[serial-fuk-live-settings-sync]].
 - Serial baud rate default (115200) is an unconfirmed assumption. Message framing was confirmed by direct capture and fixed — see [[ble-cr-only-line-endings]].
 - No auto-reconnect on unexpected disconnect, for either transport.
 - Windows support (noble and serialport) is untested; only macOS has been verified. Neither transport has been exercised against real hardware yet.

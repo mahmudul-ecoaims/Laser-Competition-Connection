@@ -2,7 +2,7 @@ import type { BleDeviceInfo } from './ble';
 import type { SipSyncKind } from './commands';
 import type { DeviceMessage, DeviceStatusEvent, DeviceTransportKind } from './device';
 import type { SerialPortInfo } from './serial';
-import type { DeviceSettings } from './settings';
+import type { DeviceSettings, DeviceSettingsEvent } from './settings';
 
 export interface ElectronAPI {
   getAppVersion: () => Promise<string>;
@@ -29,5 +29,6 @@ export interface ElectronAPI {
     disconnect: (transport: DeviceTransportKind) => Promise<void>;
     onStatusChanged: (callback: (status: DeviceStatusEvent) => void) => () => void;
     onMessage: (callback: (message: DeviceMessage) => void) => () => void;
+    onSettingsChanged: (callback: (event: DeviceSettingsEvent) => void) => () => void;
   };
 }

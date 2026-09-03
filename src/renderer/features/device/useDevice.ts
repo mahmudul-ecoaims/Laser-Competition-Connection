@@ -85,10 +85,21 @@ export const useDevice = () => {
       }
     });
 
+    const offSettings = window.electronAPI.device.onSettingsChanged((event) => {
+      if (event.transport === 'ble') {
+        setBleSettings(event.settings);
+        setBleSettingsError(null);
+      } else {
+        setSerialSettings(event.settings);
+        setSerialSettingsError(null);
+      }
+    });
+
     return () => {
       offDiscovered();
       offStatus();
       offMessage();
+      offSettings();
     };
   }, []);
 

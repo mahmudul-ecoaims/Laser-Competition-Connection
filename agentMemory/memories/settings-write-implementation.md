@@ -40,16 +40,19 @@ across the whole panel — only one field writes at a time, matching the
 single BLE write in flight) and only calls `setSettings(...)` with the
 value the main process returns, once the awaited call resolves. A
 rejection (timeout/disconnect) is caught into `settingsError` and shown
-under the panel (`ble-error` styling); `settings` stays unchanged in that
-case. Both `pendingSettingsField` and `settingsError` reset on a fresh
-`connectBle()`.
+under the panel (`ble-error` styling); the rejected promise itself does not
+apply the requested settings. Both `pendingSettingsField` and
+`settingsError` reset on a fresh `connectBle()`. Independently of this
+write-promise path, every valid incoming BLE `FUK` is pushed to the renderer,
+immediately replaces its BLE Settings state, and clears any stale settings
+error; see [[ble-fuk-live-settings-sync]].
 
 **Still assumed, not confirmed against firmware:**
 
 - `DEFAULT_DEVICE_SETTINGS` (`src/shared/constants/settings.ts`) seeds
-  `currentSettings`/`settings` on connect — still not read from the device
-  until the first successful write's FUK reply arrives. No explicit
-  "read current settings" request is sent on connect.
+  `currentSettings`/`settings` on connect. No explicit "read current
+  settings" request is sent on connect; the defaults remain visible until
+  the device sends any valid FUK (spontaneously or after a write).
 - FU2's `currentTime` field is still assumed `HH:mm` 24h local clock
   (`currentTimeString()` in `deviceSettingsProtocol.ts`) — unconfirmed, see
   [[ble-settings-write-protocol]].

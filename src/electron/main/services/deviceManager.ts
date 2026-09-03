@@ -2,7 +2,7 @@ import { BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from '../../../shared/ipc/channels';
 import type { DeviceMessage, DeviceStatusEvent, DeviceTransportKind } from '../../../shared/types/device';
 import type { SipSyncKind } from '../../../shared/types/commands';
-import type { DeviceSettings } from '../../../shared/types/settings';
+import type { DeviceSettings, DeviceSettingsEvent } from '../../../shared/types/settings';
 import { encodeInfo, encodeSip } from './deviceCommandProtocol';
 
 /**
@@ -140,6 +140,10 @@ class DeviceManager {
 
   publishMessage(message: DeviceMessage): void {
     this.broadcast(IPC_CHANNELS.deviceMessageReceived, message);
+  }
+
+  publishSettings(event: DeviceSettingsEvent): void {
+    this.broadcast(IPC_CHANNELS.deviceSettingsChanged, event);
   }
 }
 

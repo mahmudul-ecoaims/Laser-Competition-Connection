@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '../../shared/ipc/channels';
 import type { ElectronAPI } from '../../shared/types/electronApi';
 import type { BleDeviceInfo } from '../../shared/types/ble';
 import type { DeviceMessage, DeviceStatusEvent } from '../../shared/types/device';
+import type { DeviceSettingsEvent } from '../../shared/types/settings';
 
 const subscribe = <T>(channel: string, callback: (payload: T) => void) => {
   const listener = (_event: Electron.IpcRendererEvent, payload: T) => callback(payload);
@@ -36,6 +37,8 @@ const electronAPI: ElectronAPI = {
     onStatusChanged: (callback) =>
       subscribe<DeviceStatusEvent>(IPC_CHANNELS.deviceStatusChanged, callback),
     onMessage: (callback) => subscribe<DeviceMessage>(IPC_CHANNELS.deviceMessageReceived, callback),
+    onSettingsChanged: (callback) =>
+      subscribe<DeviceSettingsEvent>(IPC_CHANNELS.deviceSettingsChanged, callback),
   },
 };
 
