@@ -24,6 +24,8 @@ class SerialService {
       serialNumber: port.serialNumber,
       vendorId: port.vendorId,
       productId: port.productId,
+      pnpId: port.pnpId,
+      locationId: port.locationId,
     }));
   }
 

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { COMMON_BAUD_RATES, DEFAULT_BAUD_RATE } from '../../../shared/constants/serial';
+import type { SerialPortInfo } from '../../../shared/types/serial';
+import SerialPortInfoModal from './SerialPortInfoModal';
 import type { UseDeviceResult } from './useDevice';
 
 interface DevicePanelProps {
@@ -25,6 +27,7 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
 
   const [baudRate, setBaudRate] = useState(DEFAULT_BAUD_RATE);
   const [commandError, setCommandError] = useState<string | null>(null);
+  const [infoPort, setInfoPort] = useState<SerialPortInfo | null>(null);
 
   const runCommand = async (send: () => Promise<void>) => {
     setCommandError(null);
@@ -115,6 +118,9 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
                   <span>{port.path}</span>
                   <span className="ble-device-rssi">{port.manufacturer ?? 'Unknown manufacturer'}</span>
                   {isSelected && <span className="device-selected-badge">Selected</span>}
+                  <button type="button" onClick={() => setInfoPort(port)}>
+                    More info
+                  </button>
                   <button
                     type="button"
                     onClick={() => void (isSelected ? disconnect() : connectSerial(port.path, baudRate))}
@@ -158,6 +164,8 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
 
       {status.message && <p className="ble-error">{status.message}</p>}
       {commandError && <p className="ble-error">{commandError}</p>}
+
+      {infoPort && <SerialPortInfoModal port={infoPort} onClose={() => setInfoPort(null)} />}
     </div>
   );
 };
