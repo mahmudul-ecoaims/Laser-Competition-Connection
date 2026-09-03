@@ -15,6 +15,7 @@ architecture/context reference.
 - [ble-terminal-protocol](memories/ble-terminal-protocol.md) — TAP/FUK/HCP marker convention in the message terminal
 - [ble-settings-write-protocol](memories/ble-settings-write-protocol.md) — outgoing FU1/FU2 wire format for writing device settings
 - [settings-write-implementation](memories/settings-write-implementation.md) — how FU1/FU2 writes were implemented: state location, defaults, currentTime assumption
+- [sip-time-sync-protocol](memories/sip-time-sync-protocol.md) — outgoing SIP:01:<S|L>:hhmmsscc and INFO01 fire-and-forget commands sent generically over either transport, plus parsing INFO's IN<row> master discovery reply
 - [electron-forge-native-rebuild](memories/electron-forge-native-rebuild.md) — native module rebuild is automatic
 
 ## Adding a new memory

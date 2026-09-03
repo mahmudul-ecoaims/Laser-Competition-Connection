@@ -1,4 +1,5 @@
 import type { BleDeviceInfo } from './ble';
+import type { SipSyncKind } from './commands';
 import type { DeviceMessage, DeviceStatusEvent } from './device';
 import type { SerialPortInfo } from './serial';
 import type { DeviceSettings } from './settings';
@@ -21,6 +22,8 @@ export interface ElectronAPI {
 
   device: {
     writeCommand: (data: Uint8Array) => Promise<void>;
+    writeSip: (kind: SipSyncKind) => Promise<void>;
+    writeInfo: () => Promise<void>;
     disconnect: () => Promise<void>;
     onStatusChanged: (callback: (status: DeviceStatusEvent) => void) => () => void;
     onMessage: (callback: (message: DeviceMessage) => void) => () => void;

@@ -12,15 +12,28 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
     bleDevices,
     serialPorts,
     status,
+    sipMode,
     scanBle,
     stopBleScan,
     connectBle,
     listSerialPorts,
     connectSerial,
     disconnect,
+    writeSip,
+    writeInfo,
   } = device;
 
   const [baudRate, setBaudRate] = useState(DEFAULT_BAUD_RATE);
+  const [commandError, setCommandError] = useState<string | null>(null);
+
+  const runCommand = async (send: () => Promise<void>) => {
+    setCommandError(null);
+    try {
+      await send();
+    } catch (error) {
+      setCommandError(error instanceof Error ? error.message : String(error));
+    }
+  };
 
   const isScanning = status.status === 'scanning';
   const isConnected = status.status === 'connected';
@@ -119,7 +132,32 @@ const DevicePanel = ({ device }: DevicePanelProps) => {
         </>
       )}
 
+      {isConnected && (
+        <div className="ble-actions ble-actions--commands">
+          <button
+            type="button"
+            className={sipMode === 'S' ? 'sip-mode-button--active' : undefined}
+            aria-pressed={sipMode === 'S'}
+            onClick={() => void runCommand(() => writeSip('S'))}
+          >
+            Standby mode
+          </button>
+          <button
+            type="button"
+            className={sipMode === 'L' ? 'sip-mode-button--active' : undefined}
+            aria-pressed={sipMode === 'L'}
+            onClick={() => void runCommand(() => writeSip('L'))}
+          >
+            Live mode
+          </button>
+          <button type="button" onClick={() => void runCommand(() => writeInfo())}>
+            Request Info
+          </button>
+        </div>
+      )}
+
       {status.message && <p className="ble-error">{status.message}</p>}
+      {commandError && <p className="ble-error">{commandError}</p>}
     </div>
   );
 };

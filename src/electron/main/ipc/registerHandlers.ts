@@ -1,5 +1,6 @@
 import { app, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { IPC_CHANNELS } from '../../../shared/ipc/channels';
+import type { SipSyncKind } from '../../../shared/types/commands';
 import type { DeviceSettings } from '../../../shared/types/settings';
 import { isTrustedRendererUrl } from '../windows/mainWindow';
 import { bleService } from '../services/bleService';
@@ -56,6 +57,16 @@ export const registerIpcHandlers = () => {
   ipcMain.handle(IPC_CHANNELS.deviceWriteCommand, (event, data: Uint8Array) => {
     validateIpcSender(event);
     return deviceManager.writeCommand(data);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.deviceWriteSip, (event, kind: SipSyncKind) => {
+    validateIpcSender(event);
+    return deviceManager.writeSip(kind);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.deviceWriteInfo, (event) => {
+    validateIpcSender(event);
+    return deviceManager.writeInfo();
   });
 
   ipcMain.handle(IPC_CHANNELS.deviceDisconnect, (event) => {

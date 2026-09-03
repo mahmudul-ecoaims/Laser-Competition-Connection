@@ -15,6 +15,8 @@ export const IPC_CHANNELS = {
   // transport is currently active, so the renderer doesn't need to know
   // which one that is.
   deviceWriteCommand: 'device:write-command',
+  deviceWriteSip: 'device:write-sip',
+  deviceWriteInfo: 'device:write-info',
   deviceDisconnect: 'device:disconnect',
 
   // Main -> renderer (push events)

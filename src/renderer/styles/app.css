@@ -353,7 +353,12 @@ h2 {
   padding: 8px 14px;
 }
 
-.ble-actions button:first-child {
+/* Primary-action styling for the first button in a group — Scan/Refresh
+   ports. Excludes .ble-actions--commands (Standby/Live/Request Info): that
+   group's "selected" look is driven entirely by sip-mode-button--active
+   (see useDevice.ts's sipMode), not position, so its first button (Standby
+   mode) must not also get this unconditional teal treatment. */
+.ble-actions:not(.ble-actions--commands) button:first-child {
   border-color: #78d8cf;
   background: #78d8cf;
   color: #102022;
@@ -366,7 +371,7 @@ h2 {
   transform: translateY(-1px);
 }
 
-.ble-actions button:first-child:hover:not(:disabled) {
+.ble-actions:not(.ble-actions--commands) button:first-child:hover:not(:disabled) {
   background: #9be5df;
   color: #102022;
 }
@@ -375,6 +380,17 @@ h2 {
 .ble-device-list button:disabled {
   opacity: 0.42;
   cursor: not-allowed;
+}
+
+.ble-actions button.sip-mode-button--active {
+  border-color: #78d8cf;
+  background: #78d8cf;
+  color: #102022;
+}
+
+.ble-actions button.sip-mode-button--active:hover:not(:disabled) {
+  background: #9be5df;
+  color: #102022;
 }
 
 .ble-device-list {
@@ -622,6 +638,13 @@ h2 {
 
 .ble-terminal-marker--match {
   color: #4ade80;
+}
+
+.ble-terminal-marker--sip-in {
+  color: #4ade80;
+  /* A literal space char can't be halved, so pull the following text (the
+     "SIP"/"INx" keyword) 0.5 character width closer instead. */
+  margin-right: -0.7ch;
 }
 
 .ble-terminal-marker--out {
