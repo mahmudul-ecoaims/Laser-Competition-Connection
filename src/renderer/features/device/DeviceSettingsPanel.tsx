@@ -8,13 +8,12 @@ interface DeviceSettingsPanelProps {
 }
 
 /**
- * Shown under the device panel once a device is connected — for BLE as soon
- * as it's connected, for serial only once the device has confirmed standby
- * mode (gated in App.tsx, since settings changes are meant to be made with
- * the device idle). Each field is a row of its available options with the
- * current value highlighted; picking a new one pushes an FU1/FU2 write and
- * stays in a loading state until the device's FUK reply confirms it
- * (re-picking the current value is a no-op) — see
+ * Shown under the device panel only once the visible connected transport
+ * has confirmed standby mode (gated in App.tsx, since settings changes are
+ * meant to be made with the device idle). Each field is a row of its
+ * available options with the current value highlighted; picking a new one
+ * pushes a settings write and stays in a loading state until the device's
+ * FUK reply confirms it (re-picking the current value is a no-op) — see
  * agentMemory/memories/settings-write-implementation.md.
  */
 const DeviceSettingsPanel = ({ device, transport }: DeviceSettingsPanelProps) => {

@@ -7,6 +7,7 @@
   "private": true,
   "scripts": {
     "start": "node scripts/start-clean.mjs",
+    "start2": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",

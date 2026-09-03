@@ -18,13 +18,13 @@ const App = () => {
   const status = screen === 'ble' ? device.bleStatus : screen === 'serial' ? device.serialStatus : null;
   const isConnected = status?.status === 'connected';
   const messages = screen === 'ble' ? device.bleMessages : device.serialMessages;
-  // BLE shows Settings as soon as it's connected. Serial only shows it once
-  // the device has confirmed standby mode (serialSipMode === 'S') — unlike
-  // BLE, there's no evidence yet a serial-connected device accepts a
-  // settings write outside standby, so the panel stays hidden until that's
-  // confirmed via the SIP reply (see agentMemory/memories/sip-time-sync-protocol.md).
+  // Settings are only offered after the visible transport confirms Standby
+  // mode via its SIP reply. Both BLE and serial devices can ignore settings
+  // writes outside standby, so a plain "connected" state isn't enough.
   const showSettings =
-    isConnected && (device.mode === 'ble' || (device.mode === 'serial' && device.serialSipMode === 'S'));
+    isConnected &&
+    ((device.mode === 'ble' && device.bleSipMode === 'S') ||
+      (device.mode === 'serial' && device.serialSipMode === 'S'));
 
   const selectMode = (mode: DeviceMode) => {
     device.setMode(mode);

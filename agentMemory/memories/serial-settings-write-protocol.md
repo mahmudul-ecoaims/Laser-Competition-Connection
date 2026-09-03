@@ -45,9 +45,11 @@ was removed once the real one-line protocol was confirmed.
 **Standby-only**: per the spec, the device only responds to (or applies)
 this write in Standby mode — in Live mode it's silently ignored, no reply
 at all, indistinguishable from a dead connection. `serialService` doesn't
-enforce this itself; the renderer's existing gate (`serialSipMode === 'S'`,
-see [[sip-time-sync-protocol]] and `App.tsx`'s `showSettings`) is what's
-relied on to only offer the settings panel once standby is confirmed.
+enforce this itself; the renderer gate (`showSettings` in `App.tsx`) is
+what's relied on to only offer the settings panel once standby is confirmed.
+That same UI rule applies to BLE too: settings are hidden until the visible
+transport's SIP state is `S` (`bleSipMode === 'S'` or
+`serialSipMode === 'S'`; see [[sip-time-sync-protocol]]).
 
 **What actually fixed it vs. what didn't:** two earlier things were tried
 first and neither resolved the timeout on their own — a settle delay
