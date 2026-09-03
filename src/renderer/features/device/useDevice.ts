@@ -45,15 +45,22 @@ export const useDevice = () => {
   // agentMemory/memories/sip-time-sync-protocol.md.
   const [bleSipMode, setBleSipMode] = useState<SipSyncKind | null>(null);
   const [serialSipMode, setSerialSipMode] = useState<SipSyncKind | null>(null);
-  const [settings, setSettings] = useState<DeviceSettings>(DEFAULT_DEVICE_SETTINGS);
-  // The one settings field currently mid-write, if any. Only one at a time:
-  // writes are serialized so a field's row can show a loading state until
-  // its write settles, and so two fields never race each other over the
-  // same BLE characteristic. BLE-only feature, unaffected by serial.
-  const [pendingSettingsField, setPendingSettingsField] = useState<keyof DeviceSettings | null>(null);
+  // Settings state is one pair per transport, same as messages/status/SIP
+  // mode above — BLE and serial can both be connected (and mid-write) at
+  // once, so a single shared value would let one transport's write clobber
+  // the other's displayed state.
+  const [bleSettings, setBleSettings] = useState<DeviceSettings>(DEFAULT_DEVICE_SETTINGS);
+  const [serialSettings, setSerialSettings] = useState<DeviceSettings>(DEFAULT_DEVICE_SETTINGS);
+  // The one settings field currently mid-write per transport, if any. Only
+  // one at a time per transport: writes are serialized so a field's row can
+  // show a loading state until its write settles, and so two fields never
+  // race each other over the same write channel.
+  const [blePendingSettingsField, setBlePendingSettingsField] = useState<keyof DeviceSettings | null>(null);
+  const [serialPendingSettingsField, setSerialPendingSettingsField] = useState<keyof DeviceSettings | null>(null);
   // Set when a write's FUK confirmation times out (or the device
   // disconnects mid-write); cleared at the start of the next attempt.
-  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [bleSettingsError, setBleSettingsError] = useState<string | null>(null);
+  const [serialSettingsError, setSerialSettingsError] = useState<string | null>(null);
 
   useEffect(() => {
     const offDiscovered = window.electronAPI.ble.onDeviceDiscovered((device) => {
@@ -98,9 +105,9 @@ export const useDevice = () => {
     // The device's actual settings aren't read back on connect, so the UI
     // resets to the same defaults the main process assumes — see
     // agentMemory/memories/ble-settings-write-protocol.md.
-    setSettings(DEFAULT_DEVICE_SETTINGS);
-    setPendingSettingsField(null);
-    setSettingsError(null);
+    setBleSettings(DEFAULT_DEVICE_SETTINGS);
+    setBlePendingSettingsField(null);
+    setBleSettingsError(null);
     return window.electronAPI.ble.connect(deviceId);
   }, []);
 
@@ -117,6 +124,10 @@ export const useDevice = () => {
   const connectSerial = useCallback((path: string, baudRate: number = DEFAULT_BAUD_RATE) => {
     setSerialMessages([]);
     setSerialSipMode(null);
+    // Mirrors connectBle's reset — see agentMemory/memories/ble-settings-write-protocol.md.
+    setSerialSettings(DEFAULT_DEVICE_SETTINGS);
+    setSerialPendingSettingsField(null);
+    setSerialSettingsError(null);
     return window.electronAPI.serial.connect(path, baudRate);
   }, []);
 
@@ -146,26 +157,31 @@ export const useDevice = () => {
   // until the device's FUK reply confirms the write (main process waits
   // for it — see agentMemory/memories/settings-write-implementation.md),
   // and only then applies the *confirmed* values (not just what was
-  // requested) to `settings`. A timed-out/disconnected write leaves
-  // `settings` unchanged and surfaces `settingsError` instead.
+  // requested) to that transport's `settings`. A timed-out/disconnected
+  // write leaves `settings` unchanged and surfaces `settingsError` instead.
   const writeSettings = useCallback(
-    async (key: keyof DeviceSettings, value: number) => {
-      if (settings[key] === value) return;
+    async (transport: DeviceTransportKind, key: keyof DeviceSettings, value: number) => {
+      const current = transport === 'ble' ? bleSettings : serialSettings;
+      if (current[key] === value) return;
 
-      setPendingSettingsField(key);
-      setSettingsError(null);
+      const setPending = transport === 'ble' ? setBlePendingSettingsField : setSerialPendingSettingsField;
+      const setError = transport === 'ble' ? setBleSettingsError : setSerialSettingsError;
+      const applyConfirmed = transport === 'ble' ? setBleSettings : setSerialSettings;
+
+      setPending(key);
+      setError(null);
       try {
-        const confirmed = await window.electronAPI.ble.writeSettings({
+        const confirmed = await window.electronAPI.device.writeSettings(transport, {
           [key]: value,
         } as Partial<DeviceSettings>);
-        setSettings(confirmed);
+        applyConfirmed(confirmed);
       } catch (error) {
-        setSettingsError(error instanceof Error ? error.message : String(error));
+        setError(error instanceof Error ? error.message : String(error));
       } finally {
-        setPendingSettingsField(null);
+        setPending(null);
       }
     },
-    [settings],
+    [bleSettings, serialSettings],
   );
 
   return {
@@ -179,9 +195,12 @@ export const useDevice = () => {
     serialMessages,
     bleSipMode,
     serialSipMode,
-    settings,
-    pendingSettingsField,
-    settingsError,
+    bleSettings,
+    serialSettings,
+    blePendingSettingsField,
+    serialPendingSettingsField,
+    bleSettingsError,
+    serialSettingsError,
     scanBle,
     stopBleScan,
     connectBle,

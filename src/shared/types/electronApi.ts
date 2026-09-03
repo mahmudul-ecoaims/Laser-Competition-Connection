@@ -11,7 +11,6 @@ export interface ElectronAPI {
     startScan: () => Promise<void>;
     stopScan: () => Promise<void>;
     connect: (deviceId: string) => Promise<void>;
-    writeSettings: (settings: Partial<DeviceSettings>) => Promise<DeviceSettings>;
     onDeviceDiscovered: (callback: (device: BleDeviceInfo) => void) => () => void;
   };
 
@@ -26,6 +25,7 @@ export interface ElectronAPI {
     writeCommand: (transport: DeviceTransportKind, data: Uint8Array) => Promise<void>;
     writeSip: (transport: DeviceTransportKind, kind: SipSyncKind) => Promise<void>;
     writeInfo: (transport: DeviceTransportKind) => Promise<void>;
+    writeSettings: (transport: DeviceTransportKind, settings: Partial<DeviceSettings>) => Promise<DeviceSettings>;
     disconnect: (transport: DeviceTransportKind) => Promise<void>;
     onStatusChanged: (callback: (status: DeviceStatusEvent) => void) => () => void;
     onMessage: (callback: (message: DeviceMessage) => void) => () => void;

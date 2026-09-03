@@ -1,19 +1,35 @@
 import { DEVICE_SETTINGS_FIELDS } from '../../../shared/constants/settings';
+import type { DeviceTransportKind } from '../../../shared/types/device';
 import type { UseDeviceResult } from './useDevice';
 
 interface DeviceSettingsPanelProps {
   device: UseDeviceResult;
+  transport: DeviceTransportKind;
 }
 
 /**
- * Shown under the BLE panel once a device is connected. Each field is a row
- * of its available options with the current value highlighted; picking a
- * new one pushes an FU1/FU2 write and stays in a loading state until the
- * device's FUK reply confirms it (re-picking the current value is a
- * no-op) — see agentMemory/memories/settings-write-implementation.md.
+ * Shown under the device panel once a device is connected — for BLE as soon
+ * as it's connected, for serial only once the device has confirmed standby
+ * mode (gated in App.tsx, since settings changes are meant to be made with
+ * the device idle). Each field is a row of its available options with the
+ * current value highlighted; picking a new one pushes an FU1/FU2 write and
+ * stays in a loading state until the device's FUK reply confirms it
+ * (re-picking the current value is a no-op) — see
+ * agentMemory/memories/settings-write-implementation.md.
  */
-const DeviceSettingsPanel = ({ device }: DeviceSettingsPanelProps) => {
-  const { settings, pendingSettingsField, settingsError, writeSettings } = device;
+const DeviceSettingsPanel = ({ device, transport }: DeviceSettingsPanelProps) => {
+  const {
+    bleSettings,
+    serialSettings,
+    blePendingSettingsField,
+    serialPendingSettingsField,
+    bleSettingsError,
+    serialSettingsError,
+    writeSettings,
+  } = device;
+  const settings = transport === 'ble' ? bleSettings : serialSettings;
+  const pendingSettingsField = transport === 'ble' ? blePendingSettingsField : serialPendingSettingsField;
+  const settingsError = transport === 'ble' ? bleSettingsError : serialSettingsError;
 
   return (
     <div className="ble-panel device-settings-panel">
@@ -46,7 +62,7 @@ const DeviceSettingsPanel = ({ device }: DeviceSettingsPanelProps) => {
                       className={`device-settings-option${isSelected ? ' device-settings-option--selected' : ''}`}
                       aria-pressed={isSelected}
                       disabled={isLocked}
-                      onClick={() => void writeSettings(field.key, option.value)}
+                      onClick={() => void writeSettings(transport, field.key, option.value)}
                     >
                       {option.label}
                     </button>

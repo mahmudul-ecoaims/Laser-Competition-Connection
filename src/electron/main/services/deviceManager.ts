@@ -2,6 +2,7 @@ import { BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from '../../../shared/ipc/channels';
 import type { DeviceMessage, DeviceStatusEvent, DeviceTransportKind } from '../../../shared/types/device';
 import type { SipSyncKind } from '../../../shared/types/commands';
+import type { DeviceSettings } from '../../../shared/types/settings';
 import { encodeInfo, encodeSip } from './deviceCommandProtocol';
 
 /**
@@ -14,6 +15,7 @@ import { encodeInfo, encodeSip } from './deviceCommandProtocol';
 export interface ActiveDeviceTransport {
   readonly kind: DeviceTransportKind;
   write(data: Uint8Array): Promise<void>;
+  writeSettings(partial: Partial<DeviceSettings>): Promise<DeviceSettings>;
   disconnect(): Promise<void>;
 }
 
@@ -92,6 +94,18 @@ class DeviceManager {
   /** `INFO01` command. */
   async writeInfo(transport: DeviceTransportKind): Promise<void> {
     await this.writeLine(transport, encodeInfo());
+  }
+
+  /** FU1/FU2 settings write, waiting for the device's FUK confirmation —
+   * see agentMemory/memories/ble-settings-write-protocol.md. Delegates to
+   * whichever service (bleService/serialService) is active for `transport`,
+   * since the wire framing/wait differs per transport. */
+  async writeSettings(transport: DeviceTransportKind, partial: Partial<DeviceSettings>): Promise<DeviceSettings> {
+    const active = this.active[transport];
+    if (!active) {
+      throw new Error('No device connected');
+    }
+    return active.writeSettings(partial);
   }
 
   async disconnect(transport: DeviceTransportKind): Promise<void> {

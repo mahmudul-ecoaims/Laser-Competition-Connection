@@ -198,6 +198,7 @@ class BleService {
       deviceManager.setActive('ble', {
         kind: 'ble',
         write: (data) => this.writeCommand(data),
+        writeSettings: (partial) => this.writeSettings(partial),
         disconnect: () => this.disconnect(),
       });
       deviceManager.setStatus({ transport: 'ble', status: 'connected', targetId: deviceId });

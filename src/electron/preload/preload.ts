@@ -17,7 +17,6 @@ const electronAPI: ElectronAPI = {
     startScan: () => ipcRenderer.invoke(IPC_CHANNELS.bleStartScan),
     stopScan: () => ipcRenderer.invoke(IPC_CHANNELS.bleStopScan),
     connect: (deviceId) => ipcRenderer.invoke(IPC_CHANNELS.bleConnect, deviceId),
-    writeSettings: (settings) => ipcRenderer.invoke(IPC_CHANNELS.bleWriteSettings, settings),
     onDeviceDiscovered: (callback) =>
       subscribe<BleDeviceInfo>(IPC_CHANNELS.bleDeviceDiscovered, callback),
   },
@@ -31,6 +30,8 @@ const electronAPI: ElectronAPI = {
     writeCommand: (transport, data) => ipcRenderer.invoke(IPC_CHANNELS.deviceWriteCommand, transport, data),
     writeSip: (transport, kind) => ipcRenderer.invoke(IPC_CHANNELS.deviceWriteSip, transport, kind),
     writeInfo: (transport) => ipcRenderer.invoke(IPC_CHANNELS.deviceWriteInfo, transport),
+    writeSettings: (transport, settings) =>
+      ipcRenderer.invoke(IPC_CHANNELS.deviceWriteSettings, transport, settings),
     disconnect: (transport) => ipcRenderer.invoke(IPC_CHANNELS.deviceDisconnect, transport),
     onStatusChanged: (callback) =>
       subscribe<DeviceStatusEvent>(IPC_CHANNELS.deviceStatusChanged, callback),

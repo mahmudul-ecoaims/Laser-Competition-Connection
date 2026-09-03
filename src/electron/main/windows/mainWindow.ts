@@ -1,6 +1,6 @@
-import { BrowserWindow, screen } from 'electron';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { BrowserWindow, screen } from "electron";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -8,8 +8,8 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 const MIN_WINDOW_WIDTH = 760;
 const MIN_WINDOW_HEIGHT = 520;
 const MAX_WINDOW_WIDTH = 1200;
-const MAX_WINDOW_HEIGHT = 800;
-const INITIAL_WINDOW_SCREEN_RATIO = 0.85;
+const MAX_WINDOW_HEIGHT = 900;
+const INITIAL_WINDOW_SCREEN_RATIO = 0.9;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
@@ -63,10 +63,10 @@ export const createMainWindow = () => {
     height: initialWindowSize.height,
     minWidth: MIN_WINDOW_WIDTH,
     minHeight: MIN_WINDOW_HEIGHT,
-    title: 'laser-competition',
+    title: "laser-competition",
     show: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -77,18 +77,18 @@ export const createMainWindow = () => {
     },
   });
 
-  mainWindow.once('ready-to-show', () => {
+  mainWindow.once("ready-to-show", () => {
     mainWindow.show();
   });
 
-  mainWindow.webContents.on('will-navigate', (event, targetUrl) => {
+  mainWindow.webContents.on("will-navigate", (event, targetUrl) => {
     if (!isTrustedRendererUrl(targetUrl)) {
       event.preventDefault();
     }
   });
 
   mainWindow.webContents.setWindowOpenHandler(() => ({
-    action: 'deny',
+    action: "deny",
   }));
 
   const rendererUrl = getRendererUrl();

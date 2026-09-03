@@ -35,6 +35,41 @@ export const encodeFu2 = (settings: DeviceSettings): string =>
   `FU2:0${settings.shotsHeat}:${settings.secondsHeat}:${currentTimeString()}`;
 
 /**
+ * Serial's settings write is a *different* protocol from BLE's FU1/FU2 pair
+ * above — a single line, shaped like the FUK confirmation reply itself
+ * (device-supplied spec, "3.3 Target Configuration (Standby Only)").
+ * Confirmed working against real hardware:
+ *
+ * ```
+ * FUK:01:AA:BB:C:DD:EE:FF:0000000
+ * ```
+ *
+ * - `01`: target/lane number, same fixed value as FU1.
+ * - `AA` (brightness, 1-5): `0<brightness>`, e.g. `03`. Confirmed.
+ * - `BB`: always `00` on write — battery is read-only, this field is a
+ *   placeholder mirroring the reply's battery position.
+ * - `C` (mode): single digit, unpadded — every example in the spec keeps
+ *   this `0` since none of them are demonstrating a mode change, but it
+ *   occupies the same position FU1's `<mode>` field does, so it's assumed
+ *   settable the same way. Still unconfirmed for values other than `0` —
+ *   the hardware test that confirmed this protocol changed
+ *   brightness/area/shots/duration, not mode.
+ * - `DD` (shootingArea, 0-2): `0<shootingArea>`, e.g. `01`. Confirmed.
+ * - `EE` (shotsHeat, 1-5): `0<shotsHeat>`, e.g. `05`. Confirmed.
+ * - `FF` (secondsHeat): the literal two-digit value, one of
+ *   `[10,20,30,40,50]` — no padding needed, e.g. `40`. Confirmed.
+ * - `0000000`: fixed 7-zero placeholder, mirroring the reply's timestamp
+ *   position — always sent literally, never computed.
+ *
+ * Per the spec, the device only responds to (or applies) this command in
+ * Standby mode; in Live mode it's silently ignored — no reply at all, which
+ * looks identical to a dead/misconfigured connection from this app's side.
+ * See agentMemory/memories/serial-settings-write-protocol.md.
+ */
+export const encodeFukWrite = (settings: DeviceSettings): string =>
+  `FUK:01:0${settings.brightness}:00:${settings.mode}:0${settings.shootingArea}:0${settings.shotsHeat}:${settings.secondsHeat}:0000000`;
+
+/**
  * FUK wire format: `FUK:<targetNumber>:<brightness>:<battery>:<mode>:
  * <shootingArea>:<shotsHeat>:<secondsHeat>:<timestamp>`. Returns null for
  * anything that isn't a well-formed FUK line (wrong prefix, too few

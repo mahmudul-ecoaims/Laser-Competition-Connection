@@ -38,11 +38,6 @@ export const registerIpcHandlers = () => {
     return bleService.connect(deviceId);
   });
 
-  ipcMain.handle(IPC_CHANNELS.bleWriteSettings, (event, settings: Partial<DeviceSettings>) => {
-    validateIpcSender(event);
-    return bleService.writeSettings(settings);
-  });
-
   // Serial
   ipcMain.handle(IPC_CHANNELS.serialListPorts, (event) => {
     validateIpcSender(event);
@@ -70,6 +65,14 @@ export const registerIpcHandlers = () => {
     validateIpcSender(event);
     return deviceManager.writeInfo(transport);
   });
+
+  ipcMain.handle(
+    IPC_CHANNELS.deviceWriteSettings,
+    (event, transport: DeviceTransportKind, settings: Partial<DeviceSettings>) => {
+      validateIpcSender(event);
+      return deviceManager.writeSettings(transport, settings);
+    },
+  );
 
   ipcMain.handle(IPC_CHANNELS.deviceDisconnect, (event, transport: DeviceTransportKind) => {
     validateIpcSender(event);

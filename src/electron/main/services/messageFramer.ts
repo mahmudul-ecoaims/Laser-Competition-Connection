@@ -44,4 +44,23 @@ export class MessageFramer {
   reset(): void {
     this.buffer = Buffer.alloc(0);
   }
+
+  /**
+   * Returns and clears whatever's currently buffered with no terminator
+   * seen yet (or `null` if nothing's pending). `push()` only ever surfaces
+   * a line once a `\r`/`\n` shows up after it — fine for message types that
+   * are always followed by more traffic (a terminator eventually arrives),
+   * but a reply that's the last thing the device sends before going quiet
+   * again would sit here forever, invisible, if it doesn't carry its own
+   * trailing terminator. Callers that need that case covered (see
+   * serialService's idle-flush timer) call this after a short quiet period
+   * with no new bytes; callers that don't (bleService) simply never call
+   * it, so BLE's fragmentation handling is unaffected.
+   */
+  flush(): Buffer | null {
+    if (this.buffer.length === 0) return null;
+    const leftover = Buffer.from(this.buffer);
+    this.buffer = Buffer.alloc(0);
+    return leftover;
+  }
 }

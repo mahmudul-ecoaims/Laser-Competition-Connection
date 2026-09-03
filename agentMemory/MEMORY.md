@@ -17,6 +17,7 @@ architecture/context reference.
 - [ble-settings-write-protocol](memories/ble-settings-write-protocol.md) — outgoing FU1/FU2 wire format for writing device settings
 - [settings-write-implementation](memories/settings-write-implementation.md) — how FU1/FU2 writes were implemented: state location, defaults, currentTime assumption
 - [sip-time-sync-protocol](memories/sip-time-sync-protocol.md) — outgoing SIP:01:<S|L>:hhmmsscc and INFO01 fire-and-forget commands sent generically over either transport, plus parsing INFO's IN<row> master discovery reply
+- [serial-settings-write-protocol](memories/serial-settings-write-protocol.md) — serial's settings write is a single FUK:01:AA:BB:C:DD:EE:FF:0000000 line (not BLE's FU1/FU2 pair), Standby-mode only, confirmed on hardware
 - [electron-forge-native-rebuild](memories/electron-forge-native-rebuild.md) — native module rebuild is automatic
 - [dev-clean-start-shutdown](memories/dev-clean-start-shutdown.md) — npm start's scripts/start-clean.mjs sweeps stray forge/vite/electron processes on both startup and Ctrl+C
 

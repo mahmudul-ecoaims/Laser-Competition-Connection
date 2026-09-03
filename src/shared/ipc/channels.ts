@@ -5,7 +5,6 @@ export const IPC_CHANNELS = {
   bleStartScan: 'ble:start-scan',
   bleStopScan: 'ble:stop-scan',
   bleConnect: 'ble:connect',
-  bleWriteSettings: 'ble:write-settings',
 
   // Serial-specific (renderer -> main)
   serialListPorts: 'serial:list-ports',
@@ -17,6 +16,7 @@ export const IPC_CHANNELS = {
   deviceWriteCommand: 'device:write-command',
   deviceWriteSip: 'device:write-sip',
   deviceWriteInfo: 'device:write-info',
+  deviceWriteSettings: 'device:write-settings',
   deviceDisconnect: 'device:disconnect',
 
   // Main -> renderer (push events)
