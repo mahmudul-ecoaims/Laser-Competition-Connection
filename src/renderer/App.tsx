@@ -24,17 +24,18 @@ const App = () => {
 
   return (
     <main className={`app-shell${screen !== 'choice' ? ' app-shell--with-back' : ''}`}>
-      {screen !== 'choice' && (
-        <button type="button" className="back-button page-back-button" onClick={goBack} aria-label="Back">
-          <span className="back-button-icon" aria-hidden="true" />
-        </button>
-      )}
       <section
         className={`app-workspace${isConnected ? ' app-workspace--split' : ''}`}
         aria-labelledby="app-title"
       >
-        <header className="app-header">
+        <header className={`app-header${screen !== 'choice' ? ' app-header--with-back' : ''}`}>
+          {screen !== 'choice' && (
+            <button type="button" className="back-button page-back-button" onClick={goBack} aria-label="Back">
+              <span className="back-button-icon" aria-hidden="true" />
+            </button>
+          )}
           <h1 id="app-title">Laser Competition</h1>
+          {screen !== 'choice' && <span className="app-header-balance" aria-hidden="true" />}
         </header>
 
         {screen === 'choice' ? (

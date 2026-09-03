@@ -54,7 +54,7 @@ button:focus-visible {
 }
 
 .app-shell--with-back {
-  padding-top: 58px;
+  padding-top: 36px;
 }
 
 .app-workspace {
@@ -91,8 +91,22 @@ button:focus-visible {
   align-items: flex-end;
   justify-content: center;
   gap: 24px;
-  padding: 8px 0 26px;
+  padding: 0 0 8px;
   text-align: center;
+}
+
+.app-header--with-back {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 8px;
+  width: calc(100vw - 24px);
+  margin-left: calc((100% - (100vw - 24px)) / 2);
+}
+
+.app-header-balance {
+  width: 42px;
+  height: 42px;
 }
 
 h1,
@@ -186,10 +200,7 @@ h2 {
 }
 
 .page-back-button {
-  position: absolute;
-  top: 12px;
-  left: 36px;
-  z-index: 2;
+  justify-self: start;
 }
 
 .connection-choice {
@@ -721,11 +732,13 @@ h2 {
   }
 
   .app-shell--with-back {
-    padding-top: 54px;
+    padding-top: 24px;
   }
 
-  .page-back-button {
-    left: 24px;
+  .app-header--with-back {
+    gap: 8px;
+    width: calc(100vw - 20px);
+    margin-left: calc((100% - (100vw - 20px)) / 2);
   }
 
   .app-header {
@@ -751,16 +764,29 @@ h2 {
   }
 
   .app-shell--with-back {
-    padding-top: 52px;
+    padding-top: 18px;
   }
 
-  .page-back-button {
-    left: 18px;
-    top: 10px;
+  .app-header--with-back {
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    gap: 6px;
+    width: calc(100vw - 16px);
+    margin-left: calc((100% - (100vw - 16px)) / 2);
   }
 
   h1 {
     font-size: 2.2rem;
+  }
+
+  .app-header--with-back h1 {
+    font-size: 1.85rem;
+  }
+
+  .app-header--with-back .back-button,
+  .app-header-balance {
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
   }
 
   .ble-panel {
