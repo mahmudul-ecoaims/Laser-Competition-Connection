@@ -1,8 +1,11 @@
 ---
 name: serial-fuk-live-settings-sync
 description: Every valid incoming serial FUK updates both the terminal and live Settings state, even when no settings write is pending
-tags: [serial, fuk, settings, ipc, renderer]
+tags: [serial, fuk, settings, ipc, renderer, confirmed, standard]
 ---
+
+Accepted as working standard on 2026-09-03. The canonical serial wire format
+and FUK field mapping are documented in [[serial-settings-write-protocol]].
 
 Incoming serial `FUK` is live device state, not only an acknowledgement for
 an app-initiated settings write. In `serialService.handleIncomingLine`, every

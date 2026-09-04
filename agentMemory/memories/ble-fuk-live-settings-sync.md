@@ -1,8 +1,11 @@
 ---
 name: ble-fuk-live-settings-sync
 description: Every valid incoming BLE FUK updates both the terminal and live Settings state, even when no settings write is pending
-tags: [ble, fuk, settings, ipc, renderer]
+tags: [ble, fuk, settings, ipc, renderer, confirmed, standard]
 ---
+
+Accepted as working standard on 2026-09-03. The canonical BLE wire formats
+and FUK field mapping are documented in [[ble-settings-write-protocol]].
 
 Incoming BLE `FUK` is live device state, not only an acknowledgement for an
 app-initiated settings write. In `bleService`, every successfully parsed FUK

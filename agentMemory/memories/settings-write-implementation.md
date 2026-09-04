@@ -1,69 +1,88 @@
 ---
 name: settings-write-implementation
-description: How the FU1/FU2 write + FUK confirmation loop was implemented — where each step lives, the wait/timeout, and remaining assumptions
-tags: [ble, protocol, settings, ui]
+description: Standard BLE/serial settings implementation: transport-specific writes, shared FUK parsing, confirmation, and live state synchronization
+tags: [ble, serial, protocol, settings, fuk, ipc, ui, confirmed, standard]
 ---
 
-Implements the wire format from [[ble-settings-write-protocol]], including
-waiting for the device's `FUK` confirmation reply. Encoding/decoding lives
-in `src/electron/main/services/deviceSettingsProtocol.ts`
-(`encodeFu1`/`encodeFu2`/`parseFukMessage`), kept separate from
-`bleService.ts` for testability.
+## Status and ownership
 
-**Write flow (`bleService.writeSettings`, returns `Promise<DeviceSettings>`
-now, not `void`):**
+Accepted as the working desktop implementation standard on 2026-09-03.
+Preserve the current transport formats unless a later firmware change is
+confirmed. Canonical wire details live in [[ble-settings-write-protocol]] and
+[[serial-settings-write-protocol]].
 
-1. Merge the requested partial onto `currentSettings`; if nothing actually
-   changed, return `currentSettings` immediately — no write.
-2. Otherwise write FU1 then FU2 (each also published as an outgoing
-   `DeviceMessage`, see below).
-3. Wait on an internal `fukEvents` `EventEmitter` for the next parsed `FUK`
-   message, up to `SETTINGS_CONFIRMATION_TIMEOUT_MS` (10s, reusing the RN
-   app's write-timeout duration for a wait it doesn't actually do — the RN
-   app fires FU1/FU2 and moves on, it doesn't block on FUK).
-4. On confirmation, `currentSettings` becomes the *FUK-parsed* values (not
-   what was requested) and that's what's returned/resolved. On timeout, or
-   if the device disconnects mid-wait (the peripheral `disconnect` handler
-   emits a null `fuk` to unstick the wait), the promise rejects instead of
-   resolving with unconfirmed data.
-5. Every incoming message is checked for a `FUK` prefix and fed into
-   `fukEvents` regardless of which characteristic it arrived on (command or
-   settings) — see [[ble-settings-write-protocol]] for why command is the
-   one that actually matters. There's no correlation id, so an unrelated
-   spontaneous FUK would also resolve a pending write; not handled, no
-   evidence yet that the device sends unsolicited ones.
+`deviceSettingsProtocol.ts` owns `encodeFu1`, `encodeFu2`, `encodeFukWrite`,
+and the one shared `parseFukMessage` function. `bleService.ts` and
+`serialService.ts` own their transport framing. `deviceManager.ts`, the
+preload bridge, and `useDevice.ts` carry parsed settings to React without
+giving the renderer Node, Electron, BLE, or serial access.
 
-**Renderer (`useDevice.ts`):** `writeSettings(key, value)` skips the IPC
-call entirely if `value` already equals `settings[key]` (no loading shown).
-Otherwise it sets `pendingSettingsField` (disables every option button
-across the whole panel — only one field writes at a time, matching the
-single BLE write in flight) and only calls `setSettings(...)` with the
-value the main process returns, once the awaited call resolves. A
-rejection (timeout/disconnect) is caught into `settingsError` and shown
-under the panel (`ble-error` styling); the rejected promise itself does not
-apply the requested settings. Both `pendingSettingsField` and
-`settingsError` reset on a fresh `connectBle()`. Independently of this
-write-promise path, every valid incoming BLE `FUK` is pushed to the renderer,
-immediately replaces its BLE Settings state, and clears any stale settings
-error; see [[ble-fuk-live-settings-sync]].
+## Transport write flow
 
-**Still assumed, not confirmed against firmware:**
+Both services keep their own independent `currentSettings` and expose the
+same `writeSettings(partial): Promise<DeviceSettings>` contract:
 
-- `DEFAULT_DEVICE_SETTINGS` (`src/shared/constants/settings.ts`) seeds
-  `currentSettings`/`settings` on connect. No explicit "read current
-  settings" request is sent on connect; the defaults remain visible until
-  the device sends any valid FUK (spontaneously or after a write).
-- FU2's `currentTime` field is still assumed `HH:mm` 24h local clock
-  (`currentTimeString()` in `deviceSettingsProtocol.ts`) — unconfirmed, see
-  [[ble-settings-write-protocol]].
-- Mode option labels (`DEVICE_SETTINGS_FIELDS` in
-  `src/shared/constants/settings.ts`) — `0: Competition`, `1: Training`,
-  `2: OCR` (user-supplied mapping) — are UI-only labels for the field's
-  numeric wire values; not derived from firmware docs.
+1. Merge the requested partial into that transport's latest settings.
+2. If no value changed, return immediately without writing.
+3. BLE sends its two unterminated FU1/FU2 GATT writes. Serial sends its one
+   CRLF-terminated FUK line and drains the port.
+4. Wait up to `SETTINGS_CONFIRMATION_TIMEOUT_MS` (10 seconds) for the next
+   valid incoming FUK on that same transport.
+5. Resolve with the device-reported FUK values, not merely the requested
+   values. Timeout or disconnect rejects the promise.
 
-Every FU1/FU2 write is published as an outgoing `DeviceMessage`
-(`direction: 'out'`, new field on `DeviceMessage` — existing incoming
-messages are `direction: 'in'`) so `DeviceTerminal.tsx` shows it. Outgoing
-messages always get a red `-->` marker (`ble-terminal-marker--out`),
-regardless of prefix — separate from the existing green marker for
-incoming `TAP`/`FUK`/`HCP` lines (see [[ble-terminal-protocol]]).
+Only one settings field is written at a time per transport. The renderer
+shows Settings only after that transport has confirmed Standby mode through
+SIP (`S`), because settings writes outside Standby may be ignored.
+
+## Every-FUK read and state flow
+
+For both BLE and serial, every complete incoming line is first published as
+an incoming `DeviceMessage`, so FUK always remains visible in the correct
+transport terminal. The service then calls the shared `parseFukMessage`.
+
+Every successfully parsed FUK, whether periodic, unsolicited, or a write
+confirmation, performs all of these actions:
+
+1. Replace that service's `currentSettings` with the device-reported values.
+2. Publish typed `DeviceSettingsEvent { transport, settings }` through
+   `device:settings-changed`.
+3. Let `useDevice` replace only the matching `bleSettings` or
+   `serialSettings` state and clear that transport's stale settings error.
+4. Emit on that service's `fukEvents`, preserving the pending-write
+   confirmation flow.
+
+BLE and serial state never overwrite each other. See
+[[ble-fuk-live-settings-sync]] and [[serial-fuk-live-settings-sync]].
+
+## Renderer behavior
+
+`useDevice.writeSettings(transport, key, value)` skips a value already equal
+to the latest state. Otherwise it marks that transport's field pending,
+disables its settings options until the promise settles, and surfaces a
+timeout/disconnect error without applying the unconfirmed requested value.
+The independent every-FUK event path can still update the displayed actual
+settings whenever the device reports them.
+
+All outgoing settings writes are also published as `DeviceMessage` entries
+with `direction: 'out'`, so the terminal shows BLE FU1/FU2 or serial FUK with
+the red outgoing marker. Incoming TAP/FUK/HCP lines retain the green marker;
+see [[ble-terminal-protocol]].
+
+## Important boundaries
+
+- Neither transport sends a dedicated settings-read request on connect.
+  `DEFAULT_DEVICE_SETTINGS` seeds main and renderer state until the first
+  valid FUK arrives.
+- FUK has no correlation identifier. While a settings write is pending, the
+  next valid FUK on that transport resolves it; every FUK still updates live
+  state regardless of whether a write is pending.
+- The canonical device FUK includes the timestamp field. The current parser
+  requires fields through `secondsHeat`, requires all five stored settings to
+  be finite numbers, tolerates an absent/extra timestamp because it is ignored,
+  and does not range-check numeric values.
+- BLE is self-framed per GATT write and incoming lines split on `\r` or `\n`.
+  Serial commands require `\r\n`; serial reads also have a 200 ms idle flush
+  for a final unterminated line.
+- The accepted mode mapping is `0` Competition, `1` Training, `2` OCR. BLE
+  FU2 uses the desktop app's current local 24-hour `HH:mm` representation.

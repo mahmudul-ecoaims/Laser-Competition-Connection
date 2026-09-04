@@ -14,10 +14,10 @@ architecture/context reference.
 - [noble-vite-bundling-bug](memories/noble-vite-bundling-bug.md) — Vite/Rollup bundling bug + fix, don't undo it
 - [macos-bluetooth-entitlement](memories/macos-bluetooth-entitlement.md) — packaged-mac Bluetooth permission requirements
 - [ble-terminal-protocol](memories/ble-terminal-protocol.md) — TAP/FUK/HCP marker convention in the message terminal
-- [ble-settings-write-protocol](memories/ble-settings-write-protocol.md) — outgoing FU1/FU2 wire format for writing device settings
-- [settings-write-implementation](memories/settings-write-implementation.md) — how FU1/FU2 writes were implemented: state location, defaults, currentTime assumption
+- [ble-settings-write-protocol](memories/ble-settings-write-protocol.md) — accepted BLE standard: unterminated FU1/FU2 writes plus shared incoming FUK field/state mapping
+- [settings-write-implementation](memories/settings-write-implementation.md) — BLE/serial settings write confirmation and every-FUK state synchronization implementation
 - [sip-time-sync-protocol](memories/sip-time-sync-protocol.md) — outgoing SIP:01:<S|L>:hhmmsscc and INFO01 fire-and-forget commands; BLE variant was silently going to the wrong (Command, not Settings) characteristic — fixed via new writeGenericCommand, confirmed working on hardware; plus parsing INFO's IN<row> master discovery reply
-- [serial-settings-write-protocol](memories/serial-settings-write-protocol.md) — serial's settings write is a single FUK:01:AA:BB:C:DD:EE:FF:0000000 line (not BLE's FU1/FU2 pair), Standby-mode only, confirmed on hardware
+- [serial-settings-write-protocol](memories/serial-settings-write-protocol.md) — accepted serial standard: one CRLF-terminated FUK settings line, Standby-only, plus shared incoming FUK mapping
 - [ble-fuk-live-settings-sync](memories/ble-fuk-live-settings-sync.md) — every valid incoming BLE FUK updates both the terminal and live Settings state, including unsolicited messages
 - [serial-fuk-live-settings-sync](memories/serial-fuk-live-settings-sync.md) — every valid incoming serial FUK updates both the terminal and live Settings state, including unsolicited messages
 - [electron-forge-native-rebuild](memories/electron-forge-native-rebuild.md) — native module rebuild is automatic

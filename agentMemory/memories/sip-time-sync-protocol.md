@@ -23,9 +23,9 @@ commands (not from the RN reference app, unlike FU1/FU2/FUK — see
 - `INFO<lane>`: no colons, lane number directly appended (`INFO01`) — no
   other fields.
 
-Unlike [[settings-write-implementation]]'s FU1/FU2 (which wait on a `FUK`
-confirmation reply), both SIP and INFO are fire-and-forget by design — no
-reply is parsed or awaited for either.
+Unlike the settings writes in [[settings-write-implementation]] (BLE FU1/FU2
+or serial FUK, both of which wait on an incoming FUK confirmation), SIP and
+INFO are fire-and-forget by design — no reply is parsed or awaited for either.
 
 **Where it lives:** `deviceManager.writeSip(kind)` / `deviceManager.writeInfo()`
 (not `bleService`/`serialService` directly) — both go through a shared

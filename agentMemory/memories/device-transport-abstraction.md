@@ -33,13 +33,15 @@ things:
 
 **Renderer side:** `useDevice.ts` keeps one full slice of state per
 transport (`bleStatus`/`serialStatus`, `bleMessages`/`serialMessages`,
-`bleSipMode`/`serialSipMode`) — both keep updating from the main process
-regardless of what's on screen. `mode` (renamed conceptually, field name
-unchanged) is *only* which screen `App.tsx` currently shows — the BLE and
-Serial screens (`DevicePanel.tsx` + `DeviceTerminal.tsx`, reached via
-`ConnectionChoiceScreen.tsx` and a back button, navigation unchanged) — not
-which transport is connected. Switching screens never disconnects
-anything; a transport only disconnects when its own screen's Disconnect
-button is pressed. Navigating back to a screen shows whatever accumulated
-in its `messages`/`status` while it wasn't displayed. `DeviceSettingsPanel`
-stays BLE-only, unaffected by serial's connection state.
+`bleSipMode`/`serialSipMode`, `bleSettings`/`serialSettings`) — both keep
+updating from the main process regardless of what's on screen. `mode`
+(renamed conceptually, field name unchanged) is *only* which screen
+`App.tsx` currently shows — the BLE and Serial screens (`DevicePanel.tsx` +
+`DeviceTerminal.tsx`, reached via `ConnectionChoiceScreen.tsx` and a back
+button, navigation unchanged) — not which transport is connected. Switching
+screens never disconnects anything; a transport only disconnects when its
+own screen's Disconnect button is pressed. Navigating back shows the
+messages, status, and latest FUK-derived settings accumulated for that
+transport. The shared `DeviceSettingsPanel` acts only on the currently
+visible transport after its SIP state confirms Standby; see
+[[settings-write-implementation]].
