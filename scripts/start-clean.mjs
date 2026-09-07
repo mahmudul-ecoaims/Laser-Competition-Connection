@@ -52,7 +52,15 @@ const readProcessesWindows = () => {
       '-NoProfile',
       '-NonInteractive',
       '-Command',
-      'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Compress',
+      // Windows PowerShell 5.1 (unlike pwsh 7+) defaults redirected/piped
+      // stdout to the console's legacy OEM codepage, not UTF-8 — so a
+      // command line containing non-ASCII characters (an accented
+      // username, a non-Latin project path, ...) would come back mangled
+      // and could fail JSON.parse below. Forcing the console output
+      // encoding to UTF-8 first keeps it matched with `encoding: 'utf8'`
+      // on the Node side.
+      '[Console]::OutputEncoding = [Text.Encoding]::UTF8; ' +
+        'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Compress',
     ],
     { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
   );
@@ -214,12 +222,11 @@ const killPids = async (pids) => {
  * Finds every forge/vite/electron process belonging to this project
  * (matchesPreviousDevProcess) other than this script's own ancestry, and
  * kills them — via `ps`/SIGTERM+SIGKILL on mac/Linux, via WMI/`taskkill /f`
- * on Windows (see readProcessesWindows/killPidsWindows). Dual purpose:
- * called once up front to clear a leftover session from a prior `npm start`
- * that didn't exit cleanly, and again from `shutdown()` below to sweep up
- * this session's own descendants on Ctrl+C — safe either way, since
- * `protectedPids` only ever protects this script's ancestor chain
- * (shell/npm/terminal), never its own descendants.
+ * on Windows (see readProcessesWindows/killPidsWindows). Only called from
+ * `shutdown()` below, on Ctrl+C/SIGTERM — `npm start` itself never sweeps,
+ * so starting a fresh session never kills one that's still running. Safe to
+ * run repeatedly since `protectedPids` only ever protects this script's own
+ * ancestor chain (shell/npm/terminal), never its own descendants.
  */
 const sweepDevProcesses = async () => {
   const processes = readProcesses();
@@ -251,9 +258,8 @@ let shuttingDown = false;
  * sweeps for anything left behind — notably a macOS Electron.app process,
  * which the OS can launch outside this terminal's process group entirely
  * (via LaunchServices), so it may never see the SIGINT/SIGTERM at all. This
- * is the same reason `sweepDevProcesses` existed for the *next* `npm start`
- * to clean up after; running it here means that cleanup happens immediately
- * instead of waiting for the next run.
+ * is the only place that sweeps: `npm start` itself no longer clears out a
+ * previous session, so it's Ctrl+C's job to leave nothing running behind.
  */
 const shutdown = async (signal) => {
   if (shuttingDown) return;
@@ -279,16 +285,32 @@ process.on('SIGINT', () => void shutdown('SIGINT'));
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
 const startForge = () => {
-  const forgeBin = isWindows
-    ? path.join(projectRoot, 'node_modules', '.bin', 'electron-forge.cmd')
-    : path.join(projectRoot, 'node_modules', '.bin', 'electron-forge');
+  // Run the CLI's actual JS entry point via this same Node binary, rather
+  // than the platform bin shim (`node_modules/.bin/electron-forge[.cmd]`).
+  // On POSIX that shim is a symlink to this exact file with a `#!/usr/bin/env
+  // node` shebang, so it's equivalent — but on Windows it's a generated
+  // `.cmd` batch file, and since Node 18.20.2/20.12.2/21.7.3 (the
+  // CVE-2024-27980 fix) `spawn()` refuses to run a `.cmd`/`.bat` file
+  // directly unless `shell: true` is passed, so spawning the shim there
+  // throws instead of starting electron-forge. Going straight to the JS
+  // entry point sidesteps that entirely (and avoids reintroducing the
+  // argument-quoting/injection surface `shell: true` would bring back),
+  // and behaves identically to the shim on every platform.
+  const forgeEntry = path.join(
+    projectRoot,
+    'node_modules',
+    '@electron-forge',
+    'cli',
+    'dist',
+    'electron-forge.js',
+  );
 
-  if (!fs.existsSync(forgeBin)) {
+  if (!fs.existsSync(forgeEntry)) {
     console.error('electron-forge was not found. Run npm install before npm start.');
     process.exit(1);
   }
 
-  forgeChild = spawn(forgeBin, ['start'], {
+  forgeChild = spawn(process.execPath, [forgeEntry, 'start'], {
     cwd: projectRoot,
     stdio: 'inherit',
   });
@@ -300,8 +322,8 @@ const startForge = () => {
       // electron-forge stopped because it received a signal itself (e.g.
       // Ctrl+C delivered directly to it as a member of the same foreground
       // process group) rather than via our shutdown() — route through the
-      // same sweep instead of exiting immediately, so stragglers still get
-      // cleaned up now rather than at the next `npm start`.
+      // same sweep instead of exiting immediately, so stragglers (e.g. a
+      // detached macOS Electron.app) still get cleaned up now.
       void shutdown(signal);
       return;
     }
@@ -310,9 +332,9 @@ const startForge = () => {
   });
 };
 
-sweepDevProcesses()
-  .then(startForge)
-  .catch((error) => {
-    console.error('Failed to cleanly start laser-competition:', error);
-    process.exit(1);
-  });
+try {
+  startForge();
+} catch (error) {
+  console.error('Failed to start laser-competition:', error);
+  process.exit(1);
+}

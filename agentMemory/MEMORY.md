@@ -21,7 +21,7 @@ architecture/context reference.
 - [ble-fuk-live-settings-sync](memories/ble-fuk-live-settings-sync.md) — every valid incoming BLE FUK updates both the terminal and live Settings state, including unsolicited messages
 - [serial-fuk-live-settings-sync](memories/serial-fuk-live-settings-sync.md) — every valid incoming serial FUK updates both the terminal and live Settings state, including unsolicited messages
 - [electron-forge-native-rebuild](memories/electron-forge-native-rebuild.md) — native module rebuild is automatic
-- [dev-clean-start-shutdown](memories/dev-clean-start-shutdown.md) — npm start's scripts/start-clean.mjs sweeps stray forge/vite/electron processes on both startup and Ctrl+C
+- [dev-clean-start-shutdown](memories/dev-clean-start-shutdown.md) — npm start's scripts/start-clean.mjs sweeps stray forge/vite/electron processes on Ctrl+C only (not on startup)
 
 ## Adding a new memory
 
