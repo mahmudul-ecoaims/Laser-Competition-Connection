@@ -1,4 +1,4 @@
-import noble, { type Characteristic, type Peripheral } from '@abandonware/noble';
+import noble, { type Characteristic, type Peripheral } from '@stoprocent/noble';
 import { EventEmitter } from 'node:events';
 import { BLE_SCAN_TIMEOUT_MS, BLE_UUIDS } from '../../../shared/constants/ble';
 import { DEFAULT_DEVICE_SETTINGS } from '../../../shared/constants/settings';
@@ -17,7 +17,11 @@ import { MessageFramer } from './messageFramer';
 
 /**
  * Talks to the laser-competition target device's GATT service using
- * @abandonware/noble (Node's cross-platform BLE central role).
+ * @stoprocent/noble (Node's cross-platform BLE central role). Uses native
+ * CoreBluetooth bindings on macOS and native WinRT bindings on Windows —
+ * see agentMemory/memories/noble-windows-fork-migration.md for why this
+ * replaced @abandonware/noble (whose only Windows path required replacing
+ * the adapter's driver with WinUSB, bypassing the OS Bluetooth stack).
  *
  * Runs entirely in the main process: the renderer never touches noble
  * directly, it only sees plain data over IPC (see registerHandlers.ts).
@@ -74,7 +78,7 @@ class BleService {
   }
 
   private async waitForPoweredOn(): Promise<void> {
-    if (noble._state === 'poweredOn') return;
+    if (noble.state === 'poweredOn') return;
 
     await new Promise<void>((resolve, reject) => {
       const onStateChange = (state: string) => {

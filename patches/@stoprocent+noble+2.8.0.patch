@@ -1,0 +1,21 @@
+diff --git a/node_modules/@stoprocent/noble/lib/mac/src/ble_manager.mm b/node_modules/@stoprocent/noble/lib/mac/src/ble_manager.mm
+index b82f1e9..3fac77b 100644
+--- a/node_modules/@stoprocent/noble/lib/mac/src/ble_manager.mm
++++ b/node_modules/@stoprocent/noble/lib/mac/src/ble_manager.mm
+@@ -96,6 +96,16 @@ - (void) centralManager:(CBCentralManager *)central
+     std::string uuid = getUuid(peripheral);
+     [self.discovered addObject:getNSUuid(peripheral)];
+ 
++    // Cache the live CBPeripheral reference we were just handed so a later
++    // connect: can use it directly instead of falling back to
++    // retrievePeripheralsWithIdentifiers:, which can fail to resolve a
++    // peripheral that has no prior OS-level bonding/pairing relationship
++    // (reproducible hang: connect() silently no-ops, no didConnect/
++    // didFailToConnect ever fires, peripheral.state stuck at 'connecting'
++    // forever).
++    peripheral.delegate = self;
++    [self.peripherals setObject:peripheral forKey:getNSUuid(peripheral)];
++
+     Peripheral p;
+     p.address = getAddress(uuid, &p.addressType);
+     

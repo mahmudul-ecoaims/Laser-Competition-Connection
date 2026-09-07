@@ -17,4 +17,6 @@ per-platform/per-Electron-ABI (handled automatically by electron-forge's
 needs Bluetooth usage-description entries (see
 [[macos-bluetooth-entitlement]]).
 
-See [[noble-vite-bundling-bug]] for a bundling gotcha this choice introduced.
+See [[noble-vite-bundling-bug]] for a bundling gotcha this choice introduced,
+and [[noble-windows-fork-migration]] for why the noble dependency is
+`@stoprocent/noble` rather than `@abandonware/noble`.

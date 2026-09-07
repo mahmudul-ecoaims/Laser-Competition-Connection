@@ -17,7 +17,7 @@ and NOT used here. Only the BLE UUIDs were carried over, into
 
 - Electron 44, electron-forge 7 (Vite plugin, Squirrel/zip/deb/rpm makers, Fuses plugin)
 - React 19 + TypeScript, strict mode
-- `@abandonware/noble` for BLE, `serialport` for USB/serial — both native modules, both run in the main process only
+- `@stoprocent/noble` for BLE, `serialport` for USB/serial — both native modules, both run in the main process only. See [[noble-windows-fork-migration]] for why noble is the `@stoprocent` fork, not `@abandonware`. Its mac binding carries a local `patch-package` fix — see [[noble-mac-connect-hang-fix]].
 
 ## Folder map
 
@@ -74,8 +74,15 @@ and NOT used here. Only the BLE UUIDs were carried over, into
 - No auto-reconnect on unexpected disconnect, for either transport.
 - The current BLE FU1/FU2 settings flow, serial FUK settings flow, and live
   FUK-to-Settings synchronization are the user-accepted working hardware
-  standard as of 2026-09-03. Windows support for noble and serialport remains
-  untested; current verification is on macOS.
+  standard as of 2026-09-03. Windows support for serialport remains
+  untested; BLE switched from `@abandonware/noble` to `@stoprocent/noble` on
+  2026-09-07 specifically to fix Windows (see
+  [[noble-windows-fork-migration]]) but that fix itself still needs
+  hardware verification on Windows. The same 2026-09-07 change also
+  surfaced and fixed a real macOS-only connect hang (see
+  [[noble-mac-connect-hang-fix]]), verified against real hardware
+  (`LT700_40`) in dev (`npm start`); not yet re-verified in a packaged
+  (`npm run make`) build.
 - Packaged build (`make`/`package`) has not been tested end-to-end.
 
 For decisions, bugs-and-fixes, and other non-obvious facts, see [`MEMORY.md`](MEMORY.md) in this folder.

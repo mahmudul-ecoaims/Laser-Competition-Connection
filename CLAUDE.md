@@ -30,9 +30,13 @@ history live in **[`agentMemory/`](agentMemory/)**:
   convenience.
 - New IPC channel → `shared/ipc/channels.ts` + `registerHandlers.ts` +
   `preload.ts`/`electronApi.ts` together (see `agentMemory/PROJECT.md`).
-- `@abandonware/noble` must stay external in `vite.main.config.ts` — see
+- `@stoprocent/noble` must stay external in `vite.main.config.ts` — see
   `agentMemory/memories/noble-vite-bundling-bug.md` before touching Vite
   config.
+- `patches/@stoprocent+noble+*.patch` fixes a real macOS connect-hang bug
+  in that package — see `agentMemory/memories/noble-mac-connect-hang-fix.md`
+  before running `npm install` without `postinstall` (which applies it via
+  `patch-package`) or upgrading `@stoprocent/noble`.
 - `docs/constants/index.ts` is a read-only reference from the companion
   React Native app; its lint errors (unresolved RN imports) are expected and
   not to be "fixed".

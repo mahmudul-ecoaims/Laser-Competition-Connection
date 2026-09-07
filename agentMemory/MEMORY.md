@@ -12,6 +12,8 @@ architecture/context reference.
 - [serial-port-info-fields](memories/serial-port-info-fields.md) — all 7 SerialPortInfo fields, reliability, and the "More info" modal that shows them
 - [ble-cr-only-line-endings](memories/ble-cr-only-line-endings.md) — BLE lines often end in bare \r with \n arriving late; framer splits on either
 - [noble-vite-bundling-bug](memories/noble-vite-bundling-bug.md) — Vite/Rollup bundling bug + fix, don't undo it
+- [noble-windows-fork-migration](memories/noble-windows-fork-migration.md) — switched @abandonware/noble → @stoprocent/noble; abandonware's Windows-only path (WinUSB/HCI-socket) breaks the OS Bluetooth stack
+- [noble-mac-connect-hang-fix](memories/noble-mac-connect-hang-fix.md) — @stoprocent/noble's mac binding silently hangs connect() for peripherals macOS has no prior bonding with; patched via patch-package
 - [macos-bluetooth-entitlement](memories/macos-bluetooth-entitlement.md) — packaged-mac Bluetooth permission requirements
 - [ble-terminal-protocol](memories/ble-terminal-protocol.md) — TAP/FUK/HCP marker convention in the message terminal
 - [ble-settings-write-protocol](memories/ble-settings-write-protocol.md) — accepted BLE standard: unterminated FU1/FU2 writes plus shared incoming FUK field/state mapping

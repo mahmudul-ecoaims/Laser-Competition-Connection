@@ -36,7 +36,8 @@ Never import Noble, SerialPort, Node, or Electron APIs into React components.
 ### Software and packages
 
 - Node.js/npm compatible with Electron 44 and Electron Forge 7.
-- `@abandonware/noble` for BLE central communication.
+- `@stoprocent/noble` for BLE central communication (native CoreBluetooth
+  bindings on macOS, native WinRT bindings on Windows).
 - `serialport` and `@serialport/bindings-cpp` for USB/serial communication.
 - Electron preload/IPC bridge for renderer-to-main communication.
 

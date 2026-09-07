@@ -13,7 +13,7 @@ const config: ForgeConfig = {
     asar: true,
     extendInfo: {
       // Required on macOS for the packaged app to access Bluetooth via
-      // @abandonware/noble (bleService.ts) — without this the OS silently
+      // @stoprocent/noble (bleService.ts) — without this the OS silently
       // denies BLE access instead of prompting the user.
       NSBluetoothAlwaysUsageDescription:
         'laser-competition needs Bluetooth to connect to the laser target device.',
@@ -29,7 +29,7 @@ const config: ForgeConfig = {
     new MakerDeb({}),
   ],
   plugins: [
-    // Unpacks native .node bindings (e.g. @abandonware/noble's BLE addon)
+    // Unpacks native .node bindings (e.g. @stoprocent/noble's BLE addon)
     // from the asar archive so they can be loaded at runtime.
     new AutoUnpackNativesPlugin({}),
     new VitePlugin({
