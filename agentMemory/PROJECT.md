@@ -77,12 +77,18 @@ and NOT used here. Only the BLE UUIDs were carried over, into
   standard as of 2026-09-03. Windows support for serialport remains
   untested; BLE switched from `@abandonware/noble` to `@stoprocent/noble` on
   2026-09-07 specifically to fix Windows (see
-  [[noble-windows-fork-migration]]) but that fix itself still needs
-  hardware verification on Windows. The same 2026-09-07 change also
+  [[noble-windows-fork-migration]]). The same 2026-09-07 change also
   surfaced and fixed a real macOS-only connect hang (see
   [[noble-mac-connect-hang-fix]]), verified against real hardware
   (`LT700_40`) in dev (`npm start`); not yet re-verified in a packaged
-  (`npm run make`) build.
+  (`npm run make`) build. **Windows was tested 2026-09-07 and is
+  half-fixed**: `LT600_01` now works correctly end-to-end. `LT700_40`
+  still shows as "Unknown device" in Windows' Bluetooth settings, nominally
+  reaches `status: 'connected'` in the app but never delivers notify data
+  and writes eventually fail with `Error: Disconnected unknown` — root
+  cause not yet found on Windows. See
+  [[noble-windows-connect-unreliable]] — start there before touching
+  Windows BLE again.
 - Packaged build (`make`/`package`) has not been tested end-to-end.
 
 For decisions, bugs-and-fixes, and other non-obvious facts, see [`MEMORY.md`](MEMORY.md) in this folder.

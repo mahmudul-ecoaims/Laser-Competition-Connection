@@ -45,3 +45,13 @@ macOS also turned out to need a fix after this migration — see
 [[noble-mac-connect-hang-fix]] for a real (still-unfixed-upstream as of
 2026-09-07) connect-hang bug found in `@stoprocent/noble`'s mac binding,
 patched locally via `patch-package`.
+
+**2026-09-07, user-confirmed on real Windows hardware: the "Unknown
+device" symptom this migration targeted is gone for `LT600_01`** (shows
+correctly, connects normally, notify messages work) **but is still
+present for `LT700_40`** specifically — it nominally connects (`status:
+'connected'` fires) but shows as Unknown device in Windows' own Bluetooth
+settings, never delivers any notify data, and writes eventually fail with
+`Error: Disconnected unknown`. Unresolved — see
+[[noble-windows-connect-unreliable]] before doing any more work on
+Windows BLE.

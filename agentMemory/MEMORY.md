@@ -14,6 +14,7 @@ architecture/context reference.
 - [noble-vite-bundling-bug](memories/noble-vite-bundling-bug.md) — Vite/Rollup bundling bug + fix, don't undo it
 - [noble-windows-fork-migration](memories/noble-windows-fork-migration.md) — switched @abandonware/noble → @stoprocent/noble; abandonware's Windows-only path (WinUSB/HCI-socket) breaks the OS Bluetooth stack
 - [noble-mac-connect-hang-fix](memories/noble-mac-connect-hang-fix.md) — @stoprocent/noble's mac binding silently hangs connect() for peripherals macOS has no prior bonding with; patched via patch-package
+- [noble-windows-connect-unreliable](memories/noble-windows-connect-unreliable.md) — **UNRESOLVED**: on Windows, LT700_40 "connects" but shows as Unknown device, never delivers notify data, writes eventually fail with "Disconnected unknown"; LT600_01 works fine — read this first if working on Windows BLE
 - [macos-bluetooth-entitlement](memories/macos-bluetooth-entitlement.md) — packaged-mac Bluetooth permission requirements
 - [ble-terminal-protocol](memories/ble-terminal-protocol.md) — TAP/FUK/HCP marker convention in the message terminal
 - [ble-settings-write-protocol](memories/ble-settings-write-protocol.md) — accepted BLE standard: unterminated FU1/FU2 writes plus shared incoming FUK field/state mapping

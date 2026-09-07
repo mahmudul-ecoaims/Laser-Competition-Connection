@@ -39,6 +39,17 @@ decision history live in **[`agentMemory/`](agentMemory/)**:
   in that package — see
   `agentMemory/memories/noble-mac-connect-hang-fix.md` before upgrading
   `@stoprocent/noble` or touching the `postinstall` script that applies it.
+- **Known unresolved bug, Windows BLE**: some BLE devices (confirmed:
+  `LT700_40`) nominally reach `status: 'connected'` but show as "Unknown
+  device" in Windows' own Bluetooth settings, never deliver any notify
+  data, and writes eventually fail with `Error: Disconnected unknown`.
+  Others (confirmed: `LT600_01`) work correctly. Related in spirit (not
+  necessarily in root cause — different native binding) to a bug already
+  found and fixed on macOS (see
+  `agentMemory/memories/noble-mac-connect-hang-fix.md`). Windows root
+  cause not yet found — read
+  `agentMemory/memories/noble-windows-connect-unreliable.md` **first**
+  before investigating this.
 - `docs/constants/index.ts` is a read-only reference copy from the companion
   React Native app. Don't "fix" its lint errors (unresolved RN imports) —
   it's not part of this build.
