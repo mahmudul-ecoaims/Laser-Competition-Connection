@@ -14,7 +14,7 @@ architecture/context reference.
 - [noble-vite-bundling-bug](memories/noble-vite-bundling-bug.md) — Vite/Rollup bundling bug + fix, don't undo it
 - [noble-windows-fork-migration](memories/noble-windows-fork-migration.md) — switched @abandonware/noble → @stoprocent/noble; abandonware's Windows-only path (WinUSB/HCI-socket) breaks the OS Bluetooth stack
 - [noble-mac-connect-hang-fix](memories/noble-mac-connect-hang-fix.md) — @stoprocent/noble's mac binding silently hangs connect() for peripherals macOS has no prior bonding with; patched via patch-package
-- [noble-windows-connect-unreliable](memories/noble-windows-connect-unreliable.md) — **UNRESOLVED**: on Windows, LT700_40 "connects" but shows as Unknown device, never delivers notify data, writes eventually fail with "Disconnected unknown"; LT600_01 works fine — read this first if working on Windows BLE
+- [noble-windows-connect-unreliable](memories/noble-windows-connect-unreliable.md) — **RESOLVED, confirmed on real LT700_40 hardware**: two bugs — `@stoprocent/noble`'s Windows binding silently swallowed real GATT write/notify failures, and `bleService.ts` never paired on Windows; pairing itself needed the plain `DeviceInformationPairing.PairAsync` instead of Custom pairing (which hit `RequiredHandlerNotRegistered`) — full trail + Windows-only scoping (mac unaffected) in the file
 - [macos-bluetooth-entitlement](memories/macos-bluetooth-entitlement.md) — packaged-mac Bluetooth permission requirements
 - [ble-terminal-protocol](memories/ble-terminal-protocol.md) — TAP/FUK/HCP marker convention in the message terminal
 - [ble-settings-write-protocol](memories/ble-settings-write-protocol.md) — accepted BLE standard: unterminated FU1/FU2 writes plus shared incoming FUK field/state mapping
@@ -25,6 +25,7 @@ architecture/context reference.
 - [serial-fuk-live-settings-sync](memories/serial-fuk-live-settings-sync.md) — every valid incoming serial FUK updates both the terminal and live Settings state, including unsolicited messages
 - [electron-forge-native-rebuild](memories/electron-forge-native-rebuild.md) — native module rebuild is automatic
 - [dev-clean-start-shutdown](memories/dev-clean-start-shutdown.md) — npm start's scripts/start-clean.mjs sweeps stray forge/vite/electron processes on Ctrl+C only (not on startup)
+- [ble-scan-name-needs-duplicates](memories/ble-scan-name-needs-duplicates.md) — RESOLVED: in-app BLE scan list showed LT700_40 as "Unknown device" (allowDuplicates false + Windows binding dropped scan-response packets for already-matched devices); also fixed the resulting list-reorders-by-RSSI UX issue by sorting by name instead
 
 ## Adding a new memory
 
