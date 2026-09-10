@@ -81,14 +81,18 @@ and NOT used here. Only the BLE UUIDs were carried over, into
   surfaced and fixed a real macOS-only connect hang (see
   [[noble-mac-connect-hang-fix]]), verified against real hardware
   (`LT700_40`) in dev (`npm start`); not yet re-verified in a packaged
-  (`npm run make`) build. **Windows was tested 2026-09-07 and is
-  half-fixed**: `LT600_01` now works correctly end-to-end. `LT700_40`
-  still shows as "Unknown device" in Windows' Bluetooth settings, nominally
-  reaches `status: 'connected'` in the app but never delivers notify data
-  and writes eventually fail with `Error: Disconnected unknown` — root
-  cause not yet found on Windows. See
-  [[noble-windows-connect-unreliable]] — start there before touching
-  Windows BLE again.
+  (`npm run make`) build. **Windows: fully resolved and confirmed on real
+  hardware as of 2026-09-07** — both `LT600_01` and `LT700_40` now connect
+  and work end-to-end in dev (`npm start`). `LT700_40` needed a real
+  Windows pairing step the app never did, plus a `@stoprocent/noble`
+  Windows-binding bug that was silently hiding the real GATT error; see
+  [[noble-windows-connect-unreliable]] for the full trail before touching
+  Windows BLE again (in particular the `electron-rebuild
+  --build-from-source` requirement — a plain rebuild silently no-ops on
+  Windows and any future native-side edit needs it). Not yet re-verified
+  in a packaged (`npm run make`) Windows build, and the OS-level "Unknown
+  device" label for `LT700_40` in Windows' own Bluetooth settings UI was
+  still open as of the fix landing — under investigation next.
 - Packaged build (`make`/`package`) has not been tested end-to-end.
 
 For decisions, bugs-and-fixes, and other non-obvious facts, see [`MEMORY.md`](MEMORY.md) in this folder.

@@ -7,6 +7,7 @@
   "private": true,
   "scripts": {
     "postinstall": "patch-package",
+    "clean": "node scripts/clean.mjs",
     "start": "node scripts/start-clean.mjs",
     "start2": "electron-forge start",
     "package": "electron-forge package",

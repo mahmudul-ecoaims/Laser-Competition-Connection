@@ -2,7 +2,7 @@ diff --git a/node_modules/@stoprocent/noble/lib/mac/src/ble_manager.mm b/node_mo
 index b82f1e9..3fac77b 100644
 --- a/node_modules/@stoprocent/noble/lib/mac/src/ble_manager.mm
 +++ b/node_modules/@stoprocent/noble/lib/mac/src/ble_manager.mm
-@@ -96,6 +96,16 @@ - (void) centralManager:(CBCentralManager *)central
+@@ -96,6 +96,16 @@
      std::string uuid = getUuid(peripheral);
      [self.discovered addObject:getNSUuid(peripheral)];
  
@@ -19,3 +19,393 @@ index b82f1e9..3fac77b 100644
      Peripheral p;
      p.address = getAddress(uuid, &p.addressType);
      
+diff --git a/node_modules/@stoprocent/noble/lib/win/src/ble_manager.cc b/node_modules/@stoprocent/noble/lib/win/src/ble_manager.cc
+index 08eff70..a55cafe 100644
+--- a/node_modules/@stoprocent/noble/lib/win/src/ble_manager.cc
++++ b/node_modules/@stoprocent/noble/lib/win/src/ble_manager.cc
+@@ -67,6 +67,79 @@ std::string gattStatusToString(GattCommunicationStatus status) {
+     }
+ }
+ 
++// `GattCommunicationStatus::ProtocolError` alone just means "the device
++// sent back an ATT-level error response" without saying which one — the
++// underlying single-byte ATT error code (Bluetooth Core Spec, Attribute
++// Protocol) is what actually distinguishes "needs pairing" (0x05/0x0f/0x08)
++// from every other rejection reason, and WinRT only exposes it via the
++// separate nullable `ProtocolError()` property on Gatt read/write results.
++// Without decoding it, every protocol-level rejection looks identical
++// ("Protocol error") no matter the real cause.
++std::string attErrorCodeToString(uint8_t code) {
++    switch (code) {
++        case 0x01: return "Invalid Handle";
++        case 0x02: return "Read Not Permitted";
++        case 0x03: return "Write Not Permitted";
++        case 0x04: return "Invalid PDU";
++        case 0x05: return "Insufficient Authentication (device likely requires pairing/bonding)";
++        case 0x06: return "Request Not Supported";
++        case 0x07: return "Invalid Offset";
++        case 0x08: return "Insufficient Authorization (device likely requires pairing/bonding)";
++        case 0x09: return "Prepare Queue Full";
++        case 0x0A: return "Attribute Not Found";
++        case 0x0B: return "Attribute Not Long";
++        case 0x0C: return "Insufficient Encryption Key Size";
++        case 0x0D: return "Invalid Attribute Value Length";
++        case 0x0E: return "Unlikely Error";
++        case 0x0F: return "Insufficient Encryption (device likely requires pairing/bonding)";
++        case 0x10: return "Unsupported Group Type";
++        case 0x11: return "Insufficient Resources";
++        default:
++            if (code >= 0x80 && code <= 0x9F) return "Application Error (device-specific)";
++            char buf[24];
++            snprintf(buf, sizeof(buf), "ATT error 0x%02x", code);
++            return std::string(buf);
++    }
++}
++
++template <typename TResult>
++std::string gattWriteStatusToString(const TResult& result) {
++    auto status = result.Status();
++    std::string message = gattStatusToString(status);
++    if (status == GattCommunicationStatus::ProtocolError) {
++        auto protocolError = result.ProtocolError();
++        if (protocolError) {
++            message += ": " + attErrorCodeToString(protocolError.Value());
++        }
++    }
++    return message;
++}
++
++// Same shape as CHECK_STATUS_AND_RESULT, but for GattWriteResult specifically
++// (characteristic/descriptor/CCCD writes) — decodes the real ATT error code
++// via gattWriteStatusToString instead of the bare status name, since "Protocol
++// error" alone doesn't say whether the device rejected the write for needing
++// pairing/encryption vs. some other reason.
++#define CHECK_WRITE_STATUS_AND_RESULT(_status, _result, _error_emit_func)        \
++    do                                                                           \
++    {                                                                            \
++        if ((_status) != AsyncStatus::Completed)                                 \
++        {                                                                        \
++            _error_emit_func(asyncStatusToString(_status));                      \
++            return;                                                              \
++        }                                                                        \
++        if (!(_result))                                                          \
++        {                                                                        \
++            _error_emit_func("Operation result is null");                        \
++            return;                                                              \
++        }                                                                        \
++        if ((_result).Status() != GattCommunicationStatus::Success)              \
++        {                                                                        \
++            _error_emit_func(gattWriteStatusToString(_result));                  \
++            return;                                                              \
++        }                                                                        \
++    } while (0)
++
+ std::string asyncStatusToString(AsyncStatus status) {
+     switch (status) {
+         case AsyncStatus::Completed:
+@@ -195,7 +268,24 @@ void BLEManager::OnScanResult(BluetoothLEAdvertisementWatcher watcher,
+     auto advertismentType = args.AdvertisementType();
+     auto advertisment = args.Advertisement();
+ 
+-    if (!mScanServiceUUIDs.empty()) {
++    // Only gate *new* devices on the service-UUID filter. A device that
++    // already matched (is already in mDeviceMap) must still have every
++    // later packet processed even if that specific packet doesn't repeat
++    // the service UUID — the scan response commonly doesn't, since
++    // primary advertising PDUs and scan responses split their AD
++    // structures (e.g. service UUIDs in the primary PDU, local name in
++    // the scan response) rather than repeating everything in both. Before
++    // this fix, a scan-response-only packet for an already-matched device
++    // was dropped by the `return` below before ever reaching
++    // PeripheralWinrt::Update(), so a name that only ever arrived via scan
++    // response was never captured — confirmed against LT700_40 (whose
++    // name never appeared even with allowDuplicates:true, unlike LT600_01
++    // whose name apparently arrives in the primary PDU already carrying
++    // the service UUID). See
++    // agentMemory/memories/ble-scan-name-needs-duplicates.md.
++    bool alreadyTracked = mDeviceMap.find(uuid) != mDeviceMap.end();
++
++    if (!alreadyTracked && !mScanServiceUUIDs.empty()) {
+         auto found = false;
+         std::vector<winrt::guid> serviceUUIDs;
+ 
+@@ -227,7 +317,7 @@ void BLEManager::OnScanResult(BluetoothLEAdvertisementWatcher watcher,
+     }
+ 
+ 
+-    if (mDeviceMap.find(uuid) == mDeviceMap.end())
++    if (!alreadyTracked)
+     {
+         mAdvertismentMap.insert(uuid);
+         auto peripheral =
+@@ -401,23 +491,29 @@ bool BLEManager::Pair(const std::string& uuid,
+ 
+     BluetoothLEDevice& device = *it->second.device;
+ 
+-    // The complete WinRT pairing sequence runs under one exception boundary.
+-    // Each of the calls below (device.DeviceInformation().Pairing(),
+-    // pairing.IsPaired(), pairing.CanPair(), pairing.Custom(), the handler
+-    // registration, and PairAsync().Completed()) can throw winrt::hresult_error
+-    // on bad device state, revoked instances, or RPC failure to the enumerator
+-    // service. A throw from any of them that escapes Pair() would propagate out
+-    // of the JS binding's QueuedEventRegistration::ForwardByBaton dispatch and
+-    // tear down the node module — that's the crash we're guarding against.
+-    //
+-    // `custom`, `token`, and `handlerRegistered` are declared before the try so
+-    // both catch blocks can see them. `custom` is null-initialised because it
+-    // is reassigned by pairing.Custom() inside the try and must be safe to
+-    // inspect in the catch. `handlerRegistered` gates the revocation so a throw
+-    // before the handler is attached cannot dereference an invalid token.
+-    DeviceInformationCustomPairing custom{nullptr};
+-    winrt::event_token token{};
+-    bool handlerRegistered = false;
++    // `kinds` is accepted (and still validated a little below) purely for
++    // JS API compatibility across platforms — this Windows implementation
++    // no longer consults it. It originally went through
++    // `pairing.Custom().PairAsync(kinds, protectionLevel)` with a
++    // `PairingRequested` handler that auto-`Accept()`ed whichever kind the
++    // caller advertised. That reliably failed with
++    // `DevicePairingResultStatus::RequiredHandlerNotRegistered` against
++    // real hardware (confirmed against LT700_40) regardless of which
++    // `DevicePairingKinds` mask was requested (tried `ConfirmOnly` alone,
++    // then `ConfirmOnly | DisplayPin | ConfirmPinMatch` — identical
++    // failure both times, and the `PairingRequested` handler never even
++    // ran, meaning Windows rejected the ceremony before ever asking us to
++    // accept anything). This matches a known, Microsoft-confirmed
++    // BLE-on-Windows limitation: Custom pairing's kind-matching can fail
++    // this way even when the plain, ceremony-agnostic
++    // `DeviceInformationPairing::PairAsync(protectionLevel)` overload
++    // (Windows owns the entire ceremony/UI itself — no app-side handler
++    // needed, so there is nothing to fail to route) succeeds instead. See
++    // agentMemory/memories/noble-windows-connect-unreliable.md for the
++    // full trail (including the two failed Custom-pairing attempts) and
++    // the Microsoft Q&A this fix is based on.
++    (void)kinds;
++
+     try
+     {
+         auto pairing = device.DeviceInformation().Pairing();
+@@ -435,75 +531,15 @@ bool BLEManager::Pair(const std::string& uuid,
+             return true;
+         }
+ 
+-        // These ceremony values are not supported because this library does
+-        // not collect PIN/password input to forward into an Accept(...) overload.
+-        constexpr uint32_t unsupportedKinds =
+-            0x00000040u | 0x00000080u | 0x00000100u;
+-        if ((static_cast<uint32_t>(kinds) & unsupportedKinds) != 0)
+-        {
+-            mEmit.Paired(uuid, false,
+-                         "pairing kinds requiring a PIN or password are not supported");
+-            return true;
+-        }
+-
+-        // Always go through `pairing.Custom()`: only DeviceInformationCustomPairing
+-        // accepts a `DevicePairingKinds` mask (DeviceInformationPairing.PairAsync
+-        // takes only a protection level). The caller-supplied `kinds` may
+-        // include ConfirmOnly, DisplayPin, or ConfirmPinMatch; PIN/password
+-        // ceremonies are rejected before we get here because this library does
+-        // not provide a way to collect or forward secrets to Accept(...).
+-        //
+-        // The PairingRequested lambda must Accept() exactly once for any kind
+-        // the caller advertised in `kinds`. Some devices negotiated through
+-        // ConfirmPinMatch can still raise a ConfirmOnly prompt; treat that as a
+-        // compatible fallback so pairing does not fail with status=Failed.
+-        // For other kinds outside the mask we return without Accept(), which
+-        // Windows treats as a rejection and PairAsync completes with
+-        // RejectedByHandler / AuthenticationNotAllowed. We never forward a PIN
+-        // or password back to JS — Windows drives the UI for non-ConfirmOnly
+-        // ceremonies.
+-        custom = pairing.Custom();
+-        token = custom.PairingRequested(
+-            [kinds](winrt::Windows::Devices::Enumeration::DeviceInformationCustomPairing const&,
+-                winrt::Windows::Devices::Enumeration::DevicePairingRequestedEventArgs const& args) {
+-                auto kind = args.PairingKind();
+-                auto kindMask = static_cast<uint32_t>(kind);
+-                auto requestedKinds = static_cast<uint32_t>(kinds);
+-                bool confirmPinMatchRequested =
+-                    (requestedKinds &
+-                     static_cast<uint32_t>(
+-                         winrt::Windows::Devices::Enumeration::DevicePairingKinds::ConfirmPinMatch)) != 0;
+-                bool confirmOnlyFallback =
+-                    confirmPinMatchRequested &&
+-                    kind == winrt::Windows::Devices::Enumeration::DevicePairingKinds::ConfirmOnly;
+-                LOGE("pairing requested, kind=%d", static_cast<int>(kind));
+-                if ((kindMask & requestedKinds) != 0 || confirmOnlyFallback)
+-                {
+-                    args.Accept();
+-                }
+-                // Any kind outside the caller's mask: do not call Accept() —
+-                // Windows treats the handler returning as a rejection.
+-            });
+-        handlerRegistered = true;
+-
+-        auto completed = bind2(this, &BLEManager::OnPaired, uuid, token, custom);
+-        custom.PairAsync(kinds, protectionLevel)
+-            .Completed(completed);
++        auto completed = bind2(this, &BLEManager::OnPaired, uuid);
++        pairing.PairAsync(protectionLevel).Completed(completed);
+     }
+     catch (const winrt::hresult_error& e)
+     {
+-        if (handlerRegistered)
+-        {
+-            try { custom.PairingRequested(token); } catch (...) {}
+-        }
+         mEmit.Paired(uuid, false, "pairing operation failed: " + winrt::to_string(e.message()));
+     }
+     catch (const std::exception& e)
+     {
+-        if (handlerRegistered)
+-        {
+-            try { custom.PairingRequested(token); } catch (...) {}
+-        }
+         mEmit.Paired(uuid, false, std::string("pairing operation failed: ") + e.what());
+     }
+     return true;
+@@ -543,19 +579,8 @@ std::string pairingResultStatusToString(DevicePairingResultStatus status)
+ }
+ 
+ void BLEManager::OnPaired(IAsyncOperation<DevicePairingResult> asyncOp, AsyncStatus status,
+-                          const std::string uuid,
+-                          winrt::event_token token,
+-                          winrt::Windows::Devices::Enumeration::DeviceInformationCustomPairing custom)
++                          const std::string uuid)
+ {
+-    // Revoke the PairingRequested handler now that pairing has settled; without
+-    // this, a stray callback (e.g. if the device re-prompts) would call Accept/
+-    // Reject on already-resolved args and could log confusing messages. Best-effort
+-    // (guarded like the revocation sites in Pair()): a throw here must not skip
+-    // the pairing result emission below. This block deliberately stays outside
+-    // the result-handling try because revocation should always run even when
+-    // the result itself is unusable.
+-    try { custom.PairingRequested(token); } catch (...) {}
+-
+     // Everything below — status branching, asyncOp.GetResults(), result.Status(),
+     // logging that touches the status enum, and the final emission — can throw
+     // winrt::hresult_error (revoked asyncOp, marshalling failures) or a standard
+@@ -875,15 +900,20 @@ void BLEManager::OnWrite(IAsyncOperation<GattWriteResult> asyncOp, AsyncStatus s
+                          const std::string uuid, const std::string serviceId,
+                          const std::string characteristicId)
+ {
+-    if (status == AsyncStatus::Completed)
+-    {
+-        mEmit.Write(uuid, serviceId, characteristicId);
+-    }
+-    else
+-    {
+-        std::string error = "status: " + std::to_string((int)status);
+-        mEmit.Write(uuid, serviceId, characteristicId, error);
+-    }
++    auto result = asyncOp.GetResults();
++
++    // Checking only AsyncStatus (whether the WinRT call completed) let a
++    // real GATT failure (e.g. AccessDenied when the characteristic needs a
++    // paired/encrypted link the peripheral never got) through as a silent
++    // success — the write looked fine to JS while never reaching the
++    // device. Use the same CHECK_STATUS_AND_RESULT the read paths already
++    // use so GattCommunicationStatus is actually checked.
++    auto emit = [this, uuid, serviceId, characteristicId](const std::string& err) {
++        mEmit.Write(uuid, serviceId, characteristicId, err);
++    };
++
++    CHECK_WRITE_STATUS_AND_RESULT(status, result, emit);
++    mEmit.Write(uuid, serviceId, characteristicId);
+ }
+ 
+ GattClientCharacteristicConfigurationDescriptorValue
+@@ -972,19 +1002,24 @@ void BLEManager::OnNotify(IAsyncOperation<GattWriteResult> asyncOp, AsyncStatus
+                           const std::string serviceId, const std::string characteristicId,
+                           const bool state)
+ {
+-    if (status == AsyncStatus::Completed)
+-    {
+-        mEmit.Notify(uuid, serviceId, characteristicId, state);
+-    }
+-    else
+-    {
+-        std::string error = "status: " + std::to_string((int)status);
+-        mEmit.Notify(uuid, serviceId, characteristicId, state, error);
++    auto result = asyncOp.GetResults();
++
++    // Same masking bug as OnWrite: this only checked AsyncStatus, so a CCCD
++    // write that Windows actually rejected (e.g. AccessDenied because the
++    // characteristic requires pairing/encryption) was reported as a
++    // successful subscription. The peripheral never got its CCCD written,
++    // so it never sends notifications, but the app believed it had
++    // subscribed. Check the real GattCommunicationStatus instead.
++    auto emit = [this, characteristic, uuid, serviceId, characteristicId, state](const std::string& err) {
++        mEmit.Notify(uuid, serviceId, characteristicId, state, err);
+         if (state == true)
+         {
+             mNotifyMap.Unsubscribe(uuid, characteristic);
+         }
+-    }
++    };
++
++    CHECK_WRITE_STATUS_AND_RESULT(status, result, emit);
++    mEmit.Notify(uuid, serviceId, characteristicId, state);
+ }
+ 
+ void BLEManager::OnValueChanged(GattCharacteristic characteristic,
+@@ -1137,15 +1172,15 @@ void BLEManager::OnWriteValue(IAsyncOperation<GattWriteResult> asyncOp, AsyncSta
+                               const std::string uuid, const std::string serviceId,
+                               const std::string characteristicId, const std::string descriptorId)
+ {
+-    if (status == AsyncStatus::Completed)
+-    {
+-        mEmit.WriteValue(uuid, serviceId, characteristicId, descriptorId);
+-    }
+-    else
+-    {
+-        std::string error = "status: " + std::to_string((int)status);
+-        mEmit.WriteValue(uuid, serviceId, characteristicId, descriptorId, error);
+-    }
++    auto result = asyncOp.GetResults();
++
++    // Same masking bug as OnWrite/OnNotify: check the real GattCommunicationStatus.
++    auto emit = [this, uuid, serviceId, characteristicId, descriptorId](const std::string& err) {
++        mEmit.WriteValue(uuid, serviceId, characteristicId, descriptorId, err);
++    };
++
++    CHECK_WRITE_STATUS_AND_RESULT(status, result, emit);
++    mEmit.WriteValue(uuid, serviceId, characteristicId, descriptorId);
+ }
+ 
+ bool BLEManager::ReadHandle(const std::string& uuid, int handle)
+@@ -1196,13 +1231,13 @@ bool BLEManager::WriteHandle(const std::string& uuid, int handle, Data data)
+ void BLEManager::OnWriteHandle(IAsyncOperation<GattWriteResult> asyncOp, AsyncStatus status,
+                                const std::string uuid, const int handle)
+ {
+-    if (status == AsyncStatus::Completed)
+-    {
+-        mEmit.WriteHandle(uuid, handle);
+-    }
+-    else
+-    {
+-        std::string error = "status: " + std::to_string((int)status);
+-        mEmit.WriteHandle(uuid, handle, error);
+-    }
++    auto result = asyncOp.GetResults();
++
++    // Same masking bug as OnWrite/OnNotify/OnWriteValue: check the real GattCommunicationStatus.
++    auto emit = [this, uuid, handle](const std::string& err) {
++        mEmit.WriteHandle(uuid, handle, err);
++    };
++
++    CHECK_WRITE_STATUS_AND_RESULT(status, result, emit);
++    mEmit.WriteHandle(uuid, handle);
+ }
+diff --git a/node_modules/@stoprocent/noble/lib/win/src/ble_manager.h b/node_modules/@stoprocent/noble/lib/win/src/ble_manager.h
+index 7f811c5..c75d96e 100644
+--- a/node_modules/@stoprocent/noble/lib/win/src/ble_manager.h
++++ b/node_modules/@stoprocent/noble/lib/win/src/ble_manager.h
+@@ -48,7 +48,7 @@ private:
+     void OnScanResult(BluetoothLEAdvertisementWatcher watcher, const BluetoothLEAdvertisementReceivedEventArgs& args);
+     void OnScanStopped(BluetoothLEAdvertisementWatcher watcher, const BluetoothLEAdvertisementWatcherStoppedEventArgs& args);
+     void OnConnected(IAsyncOperation<BluetoothLEDevice> asyncOp, AsyncStatus status, std::string uuid);
+-    void OnPaired(IAsyncOperation<winrt::Windows::Devices::Enumeration::DevicePairingResult> asyncOp, AsyncStatus status, std::string uuid, winrt::event_token token, winrt::Windows::Devices::Enumeration::DeviceInformationCustomPairing custom);
++    void OnPaired(IAsyncOperation<winrt::Windows::Devices::Enumeration::DevicePairingResult> asyncOp, AsyncStatus status, std::string uuid);
+     void OnConnectionStatusChanged(BluetoothLEDevice device, winrt::Windows::Foundation::IInspectable inspectable);
+     void OnGattSessionCreated(IAsyncOperation<GattSession> asyncOp, AsyncStatus status, std::string uuid);
+     void OnMaxPduSizeChanged(GattSession session, winrt::Windows::Foundation::IInspectable object, std::string uuid);

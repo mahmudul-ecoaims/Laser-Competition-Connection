@@ -1,4 +1,4 @@
-import noble, { type Characteristic, type Peripheral } from '@stoprocent/noble';
+import noble, { DevicePairingKinds, type Characteristic, type Peripheral } from '@stoprocent/noble';
 import { EventEmitter } from 'node:events';
 import { BLE_SCAN_TIMEOUT_MS, BLE_UUIDS } from '../../../shared/constants/ble';
 import { DEFAULT_DEVICE_SETTINGS } from '../../../shared/constants/settings';
@@ -99,7 +99,15 @@ class BleService {
     await this.waitForPoweredOn();
 
     deviceManager.setStatus({ transport: 'ble', status: 'scanning' });
-    await noble.startScanningAsync([BLE_UUIDS.SERVICE], false);
+    // allowDuplicates: true — see agentMemory/memories/ble-scan-name-needs-duplicates.md.
+    // On Windows, a device whose advertised name only arrives in a later
+    // packet (e.g. the scan response, not the primary advertising PDU —
+    // confirmed: LT700_40) never gets a 'discover' re-emit with
+    // allowDuplicates false, so the app never learns its name. The 15s
+    // scan window and small number of nearby target devices make the
+    // extra 'discover' traffic this produces a non-issue; the renderer
+    // (useDevice.ts) already replaces-by-id and re-sorts on every event.
+    await noble.startScanningAsync([BLE_UUIDS.SERVICE], true);
 
     if (this.scanTimeout) clearTimeout(this.scanTimeout);
     this.scanTimeout = setTimeout(() => {
@@ -154,6 +162,46 @@ class BleService {
     await characteristic.subscribeAsync();
   }
 
+  /**
+   * Windows-only: @stoprocent/noble's WinRT binding is the only one that
+   * implements pairing at all — mac/linux reject `pairAsync()` outright
+   * with "Pairing is not supported on this platform". Some Windows-only
+   * devices (confirmed: LT700_40) need a real OS-level paired/bonded link
+   * before their GATT characteristics accept writes; without it Windows
+   * rejects the notify-subscribe CCCD write with ATT "Insufficient
+   * Authentication" and every notify/write on that device silently failed
+   * before this was traced — see
+   * agentMemory/memories/noble-windows-connect-unreliable.md.
+   *
+   * Best-effort and non-fatal: a device that doesn't need pairing
+   * (confirmed: LT600_01) either resolves instantly (native code reports
+   * success immediately when already paired) or fails harmlessly here —
+   * if pairing genuinely was required and this failed, the same clear,
+   * decoded ATT error still surfaces from the next GATT operation
+   * (`subscribeToNotifications`) exactly as it did before this call
+   * existed, so connect() isn't made any less reliable by trying.
+   *
+   * `kind` must include whichever ceremony Windows/the peripheral actually
+   * negotiate, or `PairAsync` fails immediately with
+   * `RequiredHandlerNotRegistered` before our native `PairingRequested`
+   * handler ever runs (confirmed against LT700_40: passing only the
+   * library's default `ConfirmOnly` hit exactly this). Request every
+   * ceremony the native binding can auto-accept without real secret input
+   * from a user (`ble_manager.cc`'s `Pair()` only refuses
+   * ProvidePin/ProvidePassword/ConfirmPassword, which need UI we don't
+   * have) so whichever one gets negotiated is covered.
+   */
+  private async pairIfNeeded(peripheral: Peripheral): Promise<void> {
+    if (process.platform !== 'win32') return;
+    try {
+      await peripheral.pairAsync(
+        DevicePairingKinds.ConfirmOnly | DevicePairingKinds.DisplayPin | DevicePairingKinds.ConfirmPinMatch,
+      );
+    } catch (error) {
+      console.warn('[bleService] pairAsync failed (only matters if this device actually requires pairing):', error);
+    }
+  }
+
   async connect(deviceId: string): Promise<void> {
     const peripheral = this.discovered.get(deviceId);
     if (!peripheral) {
@@ -184,6 +232,7 @@ class BleService {
 
     try {
       await peripheral.connectAsync();
+      await this.pairIfNeeded(peripheral);
 
       const { characteristics } = await peripheral.discoverSomeServicesAndCharacteristicsAsync(
         [BLE_UUIDS.SERVICE],
